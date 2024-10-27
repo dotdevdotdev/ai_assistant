@@ -1,0 +1,20 @@
+assistant:
+  config: {}
+  provider: anthropic
+audio:
+  config:
+    channels: 1
+    chunk_size: 1024
+    sample_rate: 16000
+  provider: pyaudio
+clipboard:
+  config: {}
+  provider: qt
+speech:
+  config: {}
+  provider: whisper
+ui:
+  theme: dark
+  window_size:
+  - 800
+  - 600
