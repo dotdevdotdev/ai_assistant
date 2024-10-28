@@ -237,24 +237,133 @@ MUST Use iscoroutinefunction to properly handle mixed sync/async callbacks in ev
 MUST Maintain clear async boundaries between real-time audio capture and network services
 MUST Handle WebSocket connection lifecycle with proper async/await patterns
 
-# Deepgram-Specific Patterns
+## TTS Integration Patterns
 
-MUST Create Deepgram WebSocket connections in two steps:
+MUST Follow these steps when integrating new TTS providers:
 
-1. Create live client: `live_client = client.listen.live.v("1")`
-2. Start connection without await: `connection = live_client.start(options)`
-   MUST Register event handlers on live client before starting connection
-   MUST Use sync event registration with async handlers:
+1. Create provider interface implementation
+2. Add provider type to enums
+3. Create dedicated UI controls
+4. Add configuration options to settings
+5. Register provider in application setup
+6. Implement proper audio playback handling
+
+Example TTS provider registration:
 
 ```python
-# Correct pattern:
-live_client = client.listen.live.v("1")
-async def on_message(msg): ...
-live_client.on("Results", on_message)
-connection = live_client.start(options)
+# Add TTS provider
+tts_config = self.config.speech.config.get("provider_name", {})
+tts_provider = ProviderClass(model_name=tts_config.get("model", "default_model"))
+self.registry.register_provider(TextToSpeechProvider, tts_provider)
 ```
 
-NEVER Mix sync and async callbacks without explicit handling
-NEVER Use recursive event emission in error handlers
-NEVER Await the start() method of Deepgram WebSocket connections
-NEVER Register handlers after starting the connection
+## Directory Structure Standards
+
+MUST Follow these directory conventions:
+
+- `recordings/` - For temporary audio recordings
+- `reference_audio/` - For TTS voice reference files
+- `resources/audio/` - For application audio assets
+
+MUST Create directories with proper permissions:
+
+```python
+os.makedirs(directory_path, exist_ok=True)
+```
+
+## UI Component Design
+
+MUST Follow these UI component patterns:
+
+1. Separate controls into logical component classes
+2. Use consistent layout structures
+3. Implement proper signal/slot connections
+4. Handle async operations safely
+5. Provide clear user feedback
+6. Include proper error handling
+
+Example component structure:
+
+```python
+class ComponentName(QWidget):
+    signal_name = pyqtSignal(type)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._setup_ui()
+        self._connect_signals()
+        self._initialize_state()
+```
+
+## Configuration Management
+
+MUST Structure YAML configs with:
+
+- Provider-specific sections
+- Clear option hierarchies
+- Default values
+- Directory paths
+- Feature flags
+
+Example config structure:
+
+```yaml
+module_name:
+  provider: provider_name
+  config:
+    provider_name:
+      option1: value1
+      option2: value2
+```
+
+## Audio Processing Best Practices
+
+MUST Handle audio device changes safely:
+
+- Log device changes only when actually changing
+- Maintain device state consistently
+- Handle device initialization failures
+- Clean up old device connections
+
+Example device handling:
+
+```python
+def set_device(self, device_id: int) -> None:
+    if device_id != self._current_device_id:
+        self._current_device_id = device_id
+        self._initialize_device()
+```
+
+## Component Integration Steps
+
+1. Create the component class
+2. Add necessary imports
+3. Implement required interfaces
+4. Add configuration options
+5. Create UI controls
+6. Connect signals/slots
+7. Add error handling
+8. Update application setup
+9. Test all interactions
+
+## Code Organization Principles
+
+MUST Follow these organizational patterns:
+
+1. Group related functionality into components
+2. Use consistent naming conventions
+3. Implement proper interface abstractions
+4. Maintain clear dependency boundaries
+5. Document component interactions
+
+## Testing Considerations
+
+MUST Test these scenarios:
+
+1. Device changes during operation
+2. Resource cleanup on errors
+3. Async operation cancellation
+4. UI state consistency
+5. Configuration loading/saving
+6. Audio processing pipeline
+7. Error recovery paths

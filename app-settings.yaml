@@ -25,6 +25,9 @@ speech:
       language: "en"
       smart_format: true
       encoding: "linear16"
+    f5tts:
+      model: "F5-TTS"
+      reference_audio_dir: "reference_audio" # Default directory for reference audio files
 ui:
   theme:
     mode: dark

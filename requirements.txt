@@ -20,6 +20,13 @@ anthropic
 openai>=1.0.0
 elevenlabs
 pyttsx3
+git+https://github.com/SWivid/F5-TTS.git
+
+# PyTorch (CPU-only)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.0+cpu
+torchaudio==2.3.0+cpu
+torchvision==0.18.0+cpu
 
 # Utility Libraries
 pyautogui

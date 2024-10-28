@@ -1,22 +1,26 @@
 from enum import Enum
-from typing import Dict, Any
-from core.interfaces.speech import SpeechToTextProvider
+from typing import Dict, Any, Union
+from core.interfaces.speech import SpeechToTextProvider, TextToSpeechProvider
 from .whisper_provider import WhisperProvider
 from .deepgram_provider import DeepgramProvider
+from .f5_provider import F5TTSProvider
 
 
 class SpeechProviderType(Enum):
     WHISPER = "whisper"
     DEEPGRAM = "deepgram"
+    F5TTS = "f5tts"
+    ELEVENLABS = "elevenlabs"  # Add other TTS providers
 
 
 def create_speech_provider(
     provider_type: str, config: Dict[str, Any] = None
-) -> SpeechToTextProvider:
+) -> Union[SpeechToTextProvider, TextToSpeechProvider]:
     """Create and configure a speech provider"""
     providers = {
         "whisper": WhisperProvider,
         "deepgram": DeepgramProvider,
+        "f5tts": F5TTSProvider,
     }
 
     if provider_type not in providers:

@@ -1,17 +1,33 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QSplitter
+from PyQt6.QtWidgets import (
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QSplitter,
+    QHBoxLayout,
+    QPushButton,
+)
 from PyQt6.QtCore import Qt, QSettings
 from .components.message_view import MessageView
 from .components.input_area import InputArea
 from .components.assistant_selector import AssistantSelector
 from .components.audio_controls import AudioControls
+from .components.tts_controls import TTSControls  # Add this import
 from core.interfaces.assistant import Message, AssistantProvider
-from core.interfaces.audio import AudioInputProvider  # Add this import
-from core.interfaces.speech import SpeechToTextProvider
+from core.interfaces.audio import (
+    AudioInputProvider,
+    AudioOutputProvider,
+)
+from core.interfaces.speech import (
+    SpeechToTextProvider,
+    TextToSpeechProvider,
+)
 from utils.registry import ProviderRegistry
 from core.events import EventBus, Event, EventType
 import asyncio
 from typing import Optional, AsyncIterator
 from PyQt6.QtWidgets import QApplication
+import traceback
+import io
 
 
 class ChatWindow(QMainWindow):
@@ -47,6 +63,11 @@ class ChatWindow(QMainWindow):
 
         top_layout.addWidget(self.assistant_selector)
         top_layout.addWidget(self.audio_controls)
+
+        # Add TTS controls below audio controls
+        self.tts_controls = TTSControls()
+        self.tts_controls.tts_generated.connect(self._on_tts_generated)
+        top_layout.addWidget(self.tts_controls)
 
         # Message view
         self.message_view = MessageView()
@@ -197,3 +218,47 @@ class ChatWindow(QMainWindow):
     def closeEvent(self, event):
         self.save_settings()
         super().closeEvent(event)
+
+    def _setup_tts_controls(self):
+        tts_layout = QHBoxLayout()
+
+        self.tts_button = QPushButton("🔊 TTS")
+        self.tts_button.setToolTip(
+            "Convert to speech using last recording as voice reference"
+        )
+        self.tts_button.clicked.connect(self._on_tts_clicked)
+
+        tts_layout.addWidget(self.tts_button)
+        self.input_area.layout().addLayout(tts_layout)
+
+    async def _on_tts_clicked(self):
+        """Handle TTS button click"""
+        try:
+            text = self.input_area.text_edit.toPlainText().strip()
+            if not text:
+                return
+
+            # Get TTS provider
+            tts_provider = self.registry.get_provider(TextToSpeechProvider)
+
+            # Convert text to speech
+            audio_data = await tts_provider.synthesize(text)
+
+            # Play the generated audio
+            audio_provider = self.registry.get_provider(AudioOutputProvider)
+            audio_provider.play_audio(io.BytesIO(audio_data))
+
+        except Exception as e:
+            print(f"!!! Error during TTS: {e}")
+            print(traceback.format_exc())
+
+    def _on_tts_generated(self, audio_data: bytes):
+        """Handle TTS generated audio"""
+        try:
+            audio_provider = ProviderRegistry.get_instance().get_provider(
+                AudioOutputProvider
+            )
+            audio_provider.play_audio(io.BytesIO(audio_data))
+        except Exception as e:
+            print(f"!!! Error playing TTS audio: {e}")
+            print(traceback.format_exc())

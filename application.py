@@ -9,11 +9,11 @@ from core.events import EventBus, EventType, Event
 from ui.chat_window import ChatWindow
 from ui.styles import AppTheme
 from modules.audio import create_audio_provider
-from modules.speech import create_speech_provider
+from modules.speech import create_speech_provider, F5TTSProvider
 from modules.assistant import create_assistant_provider
 from modules.clipboard import create_clipboard_provider
 from core.interfaces.audio import AudioInputProvider
-from core.interfaces.speech import SpeechToTextProvider
+from core.interfaces.speech import SpeechToTextProvider, TextToSpeechProvider
 from core.interfaces.assistant import AssistantProvider
 from core.interfaces.clipboard import ClipboardProvider
 from qasync import QEventLoop
@@ -93,11 +93,19 @@ class Application:
             )
             self.registry.register_provider(ClipboardProvider, clipboard_provider)
 
-        except Exception as e:
-            print(f"Error in _setup_providers: {e}")  # Debug print
+            # Add TTS provider
+            print("\n=== Setting up TTS provider ===")
+            tts_config = self.config.speech.config.get("f5tts", {})
+            print(f">>> TTS config: {tts_config}")
+            tts_provider = F5TTSProvider(model_name=tts_config.get("model", "F5-TTS"))
+            self.registry.register_provider(TextToSpeechProvider, tts_provider)
+            print(">>> TTS provider registered")
+
+        except Exception as error:  # Changed from 'e' to 'error'
+            print(f"Error in _setup_providers: {error}")  # Debug print
             self.loop.call_soon(
-                lambda: self.loop.create_task(
-                    self.event_bus.emit(Event(EventType.ERROR, error=e))
+                lambda error=error: self.loop.create_task(  # Capture error in lambda
+                    self.event_bus.emit(Event(EventType.ERROR, error=error))
                 )
             )
             raise

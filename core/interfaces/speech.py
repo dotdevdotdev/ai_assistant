@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 
 class SpeechToTextProvider(ABC):
@@ -18,6 +18,6 @@ class SpeechToTextProvider(ABC):
 
 class TextToSpeechProvider(ABC):
     @abstractmethod
-    async def synthesize(self, text: str) -> bytes:
-        """Convert text to speech"""
+    async def synthesize(self, text: str, ref_audio: Optional[str] = None) -> bytes:
+        """Convert text to speech, optionally using reference audio for voice cloning"""
         pass
