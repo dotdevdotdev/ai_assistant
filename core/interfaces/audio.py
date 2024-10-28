@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, BinaryIO
+from typing import Optional, BinaryIO, Callable
 from dataclasses import dataclass
 
 
@@ -13,18 +13,23 @@ class AudioConfig:
 
 class AudioInputProvider(ABC):
     @abstractmethod
-    def start_stream(self, config: AudioConfig) -> None:
-        """Start audio input stream"""
+    def start_recording(self, callback: Callable[[bytes], None]) -> None:
+        """Start recording audio and call the callback with each chunk of audio data"""
         pass
 
     @abstractmethod
-    def read_chunk(self) -> bytes:
-        """Read a chunk of audio data"""
+    def stop_recording(self) -> None:
+        """Stop recording audio"""
         pass
 
     @abstractmethod
-    def stop_stream(self) -> None:
-        """Stop audio input stream"""
+    def save_recording(self, filename: str) -> None:
+        """Save the recorded audio to a file"""
+        pass
+
+    @abstractmethod
+    def play_audio(self, audio_data) -> None:
+        """Play audio data"""
         pass
 
     @abstractmethod

@@ -355,6 +355,40 @@ class PyAudioProvider(AudioInputProvider, AudioOutputProvider):
         except Exception as e:
             print(f"!!! Error during cleanup: {e}")
 
+    def start_recording(self, callback):
+        """Start recording audio and call the callback with each chunk"""
+        if self._is_recording:
+            return
+
+        self._callback = callback
+        self._is_recording = True
+
+        def audio_callback(in_data, frame_count, time_info, status):
+            if self._callback and self._is_recording:
+                self._callback(in_data)
+            return (in_data, pyaudio.paContinue)
+
+        self._stream = self._audio.open(
+            format=pyaudio.paFloat32,
+            channels=1,
+            rate=44100,
+            input=True,
+            stream_callback=audio_callback,
+        )
+        self._stream.start_stream()
+
+    def stop_recording(self):
+        """Stop recording audio"""
+        if not self._is_recording:
+            return
+
+        self._is_recording = False
+        if self._stream:
+            self._stream.stop_stream()
+            self._stream.close()
+            self._stream = None
+        self._callback = None
+
 
 # TODO: Audio Provider Status
 # - Basic recording and playback working

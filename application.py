@@ -9,7 +9,7 @@ from core.events import EventBus, EventType, Event
 from ui.chat_window import ChatWindow
 from ui.styles import AppTheme
 from modules.audio import create_audio_provider
-from modules.speech import create_speech_provider, F5TTSProvider
+from modules.speech import create_speech_provider, F5TTSProvider, WhisperProvider
 from modules.assistant import create_assistant_provider
 from modules.clipboard import create_clipboard_provider
 from core.interfaces.audio import AudioInputProvider
@@ -100,6 +100,10 @@ class Application:
             tts_provider = F5TTSProvider(model_name=tts_config.get("model", "F5-TTS"))
             self.registry.register_provider(TextToSpeechProvider, tts_provider)
             print(">>> TTS provider registered")
+
+            # Register Whisper as the speech-to-text provider
+            whisper_provider = WhisperProvider()
+            self.registry.register_provider(SpeechToTextProvider, whisper_provider)
 
         except Exception as error:  # Changed from 'e' to 'error'
             print(f"Error in _setup_providers: {error}")  # Debug print

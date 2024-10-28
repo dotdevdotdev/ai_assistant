@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from core.interfaces.audio import AudioInputProvider, AudioConfig
+from core.interfaces.speech import SpeechToTextProvider
 from utils.registry import ProviderRegistry
 import numpy as np
 import traceback
@@ -25,6 +26,7 @@ import struct
 class AudioControls(QWidget):
     recording_started = pyqtSignal()
     recording_stopped = pyqtSignal()
+    transcription_ready = pyqtSignal(str)
     input_device_changed = pyqtSignal(int)
     output_device_changed = pyqtSignal(int)
 
@@ -152,17 +154,23 @@ class AudioControls(QWidget):
         self.play_button.clicked.connect(self._on_play_clicked)
         self.play_button.setEnabled(False)
 
+        # Dictation button
+        self.dictation_button = QPushButton("Start Dictation")
+        self.dictation_button.setCheckable(True)
+        self.dictation_button.clicked.connect(self._on_dictation_clicked)
+
         controls_layout.addWidget(self.record_button)
         controls_layout.addWidget(self.play_button)
+        controls_layout.addWidget(self.dictation_button)
 
         layout.addLayout(devices_layout)
         layout.addWidget(self.level_indicator)
         layout.addLayout(controls_layout)
 
-        # Timer for updating audio level - increase interval to reduce load
+        # Timer for updating audio level
         self._level_timer = QTimer()
         self._level_timer.timeout.connect(self._update_audio_level)
-        self._level_timer.setInterval(100)  # Update every 100ms instead of 200ms
+        self._level_timer.setInterval(100)
 
     def _generate_test_tone(self) -> bytes:
         """Generate a short test tone"""
@@ -297,20 +305,33 @@ class AudioControls(QWidget):
             self.play_button.setEnabled(False)
             self.test_sound_button.setEnabled(False)
 
-            # Stop the stream and wait for processing
-            self._provider.stop_stream()
+            try:
+                # Stop the stream and wait for processing
+                self._provider.stop_stream()
 
-            # Wait for processing to complete
-            while self._provider.is_processing():
-                QApplication.processEvents()  # Keep UI responsive
+                # Wait for processing to complete
+                while self._provider.is_processing():
+                    QApplication.processEvents()  # Keep UI responsive
 
-            self._save_recording()  # Save the recording
-            self.recording_stopped.emit()
+                self._save_recording()  # Save the recording
 
-            # Re-enable controls
-            self.record_button.setEnabled(True)
-            self.play_button.setEnabled(True)
-            self.test_sound_button.setEnabled(True)
+                # Get transcription if we have audio data
+                speech_provider = ProviderRegistry.get_instance().get_provider(
+                    SpeechToTextProvider
+                )
+                if speech_provider:
+                    text = speech_provider.transcribe(self._provider._recorded_frames)
+                    print(f">>> Transcribed Text: {text}")
+                    self.transcription_ready.emit(text)
+
+                self.recording_stopped.emit()
+            except Exception as e:
+                print(f"Error during recording stop/transcription: {e}")
+            finally:
+                # Re-enable controls
+                self.record_button.setEnabled(True)
+                self.play_button.setEnabled(True)
+                self.test_sound_button.setEnabled(True)
 
     def _on_play_clicked(self):
         print("\n=== Playing recorded audio ===")
@@ -357,3 +378,60 @@ class AudioControls(QWidget):
 
     def is_recording(self) -> bool:
         return self._recording
+
+    def _on_dictation_clicked(self, checked: bool):
+        if checked:
+            print("\n=== Starting dictation ===")
+            try:
+                device_id = self.input_combo.currentData()
+                devices = self._provider.get_devices()
+                input_devices = devices.get("input", [])
+                device_info = next(d for d in input_devices if d["id"] == device_id)
+
+                config = AudioConfig(
+                    sample_rate=int(device_info["sample_rate"]),
+                    channels=1,
+                    chunk_size=1024,
+                    device_id=device_id,
+                )
+
+                self._provider.start_stream(config)
+                self._level_timer.start()
+                self.dictation_button.setText("Stop Dictation")
+
+                # Disable other controls
+                self.record_button.setEnabled(False)
+                self.play_button.setEnabled(False)
+                self.test_sound_button.setEnabled(False)
+
+            except Exception as e:
+                print(f"!!! Error starting dictation: {str(e)}")
+                print(traceback.format_exc())
+                self.dictation_button.setChecked(False)
+                return
+        else:
+            print("\n=== Stopping dictation ===")
+            self._level_timer.stop()
+            self.level_indicator.setValue(0)
+
+            try:
+                # Stop the stream and process audio
+                self._provider.stop_stream()
+
+                # Get transcription
+                speech_provider = ProviderRegistry.get_instance().get_provider(
+                    SpeechToTextProvider
+                )
+                if speech_provider and self._provider._recorded_frames:
+                    text = speech_provider.transcribe(self._provider._recorded_frames)
+                    print(f">>> Transcribed Text: {text}")
+                    self.transcription_ready.emit(text)
+
+            except Exception as e:
+                print(f"Error during dictation stop/transcription: {e}")
+            finally:
+                # Reset UI state
+                self.dictation_button.setText("Start Dictation")
+                self.record_button.setEnabled(True)
+                self.play_button.setEnabled(True)
+                self.test_sound_button.setEnabled(True)

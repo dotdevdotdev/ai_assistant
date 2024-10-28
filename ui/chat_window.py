@@ -11,7 +11,7 @@ from .components.message_view import MessageView
 from .components.input_area import InputArea
 from .components.assistant_selector import AssistantSelector
 from .components.audio_controls import AudioControls
-from .components.tts_controls import TTSControls  # Add this import
+from .components.tts_controls import TTSControls
 from core.interfaces.assistant import Message, AssistantProvider
 from core.interfaces.audio import (
     AudioInputProvider,
@@ -60,8 +60,8 @@ class ChatWindow(QMainWindow):
         self.audio_controls = AudioControls()
         self.audio_controls.recording_started.connect(self._on_recording_started)
         self.audio_controls.recording_stopped.connect(self._on_recording_stopped)
+        self.audio_controls.transcription_ready.connect(self._on_transcription_ready)
 
-        top_layout.addWidget(self.assistant_selector)
         top_layout.addWidget(self.audio_controls)
 
         # Add TTS controls below audio controls
@@ -263,6 +263,11 @@ class ChatWindow(QMainWindow):
         except Exception as e:
             print(f"!!! Error playing TTS audio: {e}")
             print(traceback.format_exc())
+
+    def _on_transcription_ready(self, text: str):
+        """Handle transcribed text"""
+        self.input_area.text_edit.setPlainText(text)
+        self.input_area.send_button.setEnabled(True)
 
 
 # TODO: Audio Integration Status
