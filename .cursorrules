@@ -367,3 +367,142 @@ MUST Test these scenarios:
 5. Configuration loading/saving
 6. Audio processing pipeline
 7. Error recovery paths
+
+## Subprocess Execution Patterns
+
+MUST Follow these subprocess execution rules:
+
+1. Command String vs List:
+
+- Use shell=True with single string for commands needing shell features
+- Use command list with shell=False for direct execution
+- Always quote paths and arguments when using shell=True
+
+Example shell=True usage:
+
+```python
+cmd = f'cli_tool --input "{input_file}" --output "{output_dir}"'
+process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+```
+
+Example shell=False usage:
+
+```python
+cmd = ["cli_tool", "--input", input_file, "--output", output_dir]
+process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE)
+```
+
+2. Output Handling:
+
+- Use text=True for string output
+- Use universal_newlines=True for consistent line endings
+- Always capture both stdout and stderr
+- Check process.returncode before using output
+
+Example proper output handling:
+
+```python
+process = subprocess.Popen(
+    cmd,
+    shell=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True
+)
+stdout, stderr = process.communicate()
+if process.returncode != 0:
+    raise RuntimeError(f"Command failed: {stderr}")
+```
+
+3. Resource Cleanup:
+
+- Always use process.communicate() to avoid deadlocks
+- Set timeouts for long-running processes
+- Clean up temp files in finally blocks
+- Handle process termination gracefully
+
+4. Common Pitfalls:
+
+- NEVER pass unquoted strings with spaces in shell=True mode
+- NEVER use shell=True with command lists
+- NEVER leave processes running without cleanup
+- NEVER mix bytes and text mode in output handling
+- NEVER ignore stderr when checking for errors
+
+5. Async Integration:
+
+- Use asyncio.create_subprocess_exec for async code
+- Use shell=True with subprocess.Popen for sync code
+- Never mix async and sync process handling
+- Always await process.communicate() in async code
+
+Example async process:
+
+```python
+process = await asyncio.create_subprocess_exec(
+    *cmd,
+    stdout=asyncio.subprocess.PIPE,
+    stderr=asyncio.subprocess.PIPE
+)
+stdout, stderr = await process.communicate()
+```
+
+6. Error Handling:
+
+- Check process.returncode explicitly
+- Capture and log stderr output
+- Include command string in error messages
+- Clean up resources on errors
+- Provide detailed error context
+
+Example error handling:
+
+```python
+try:
+    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise RuntimeError(f"Command '{cmd}' failed with code {process.returncode}: {stderr}")
+except Exception as e:
+    print(f"Error executing command: {e}")
+    raise
+```
+
+7. File Handling:
+
+- Use Path objects for file paths
+- Check file existence before and after
+- Clean up temporary files
+- Use proper file permissions
+- Handle path quoting correctly
+
+Example file handling:
+
+```python
+output_file = Path(output_dir) / "output.wav"
+if output_file.exists():
+    output_file.unlink()
+# Run command
+if not output_file.exists():
+    raise FileNotFoundError(f"Command failed to create {output_file}")
+```
+
+8. Logging:
+
+- Log full command string
+- Log process output
+- Log error conditions
+- Include timing information
+- Log resource cleanup
+
+Example logging:
+
+```python
+print(f">>> Executing command: {cmd}")
+start_time = time.time()
+process = subprocess.Popen(...)
+stdout, stderr = process.communicate()
+print(f">>> Process completed in {time.time() - start_time:.2f}s")
+if stdout: print(f">>> Output:\n{stdout}")
+if stderr: print(f">>> Errors:\n{stderr}")
+```

@@ -3,10 +3,10 @@ import numpy as np
 import wave
 import io
 from typing import Dict, List, Optional, Union
-from core.interfaces.audio import AudioDeviceManager, AudioConfig
+from core.interfaces.audio import AudioInputProvider, AudioConfig
 
 
-class SoundDeviceProvider(AudioDeviceManager):
+class SoundDeviceProvider(AudioInputProvider):
     def __init__(self, config: dict):
         self._config = config
         self._stream = None

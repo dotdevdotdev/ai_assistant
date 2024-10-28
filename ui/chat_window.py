@@ -244,8 +244,8 @@ class ChatWindow(QMainWindow):
             # Convert text to speech
             audio_data = await tts_provider.synthesize(text)
 
-            # Play the generated audio
-            audio_provider = self.registry.get_provider(AudioOutputProvider)
+            # Use AudioInputProvider here too
+            audio_provider = self.registry.get_provider(AudioInputProvider)
             audio_provider.play_audio(io.BytesIO(audio_data))
 
         except Exception as e:
@@ -255,8 +255,9 @@ class ChatWindow(QMainWindow):
     def _on_tts_generated(self, audio_data: bytes):
         """Handle TTS generated audio"""
         try:
+            # Use AudioInputProvider instead of AudioOutputProvider since that's what we registered
             audio_provider = ProviderRegistry.get_instance().get_provider(
-                AudioOutputProvider
+                AudioInputProvider
             )
             audio_provider.play_audio(io.BytesIO(audio_data))
         except Exception as e:
