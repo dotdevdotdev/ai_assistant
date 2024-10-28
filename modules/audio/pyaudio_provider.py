@@ -354,3 +354,17 @@ class PyAudioProvider(AudioInputProvider, AudioOutputProvider):
                 self._audio.terminate()
         except Exception as e:
             print(f"!!! Error during cleanup: {e}")
+
+
+# TODO: Audio Provider Status
+# - Basic recording and playback working
+# - Need to verify:
+#   1. Sample rate handling for TTS output
+#   2. Buffer sizes for stable playback
+#   3. Device switching during active streams
+#   4. Resource cleanup on errors
+# - Consider adding:
+#   1. Audio format conversion utilities
+#   2. Resampling for mismatched rates
+#   3. Volume normalization
+#   4. Better error recovery

@@ -17,6 +17,15 @@ import asyncio
 from qasync import asyncSlot
 
 
+# TODO: TTS Integration Status
+# - Basic UI and async handling is working
+# - F5-TTS provider is registered but not generating audio
+# - Need to verify F5-TTS CLI installation and dependencies
+# - May need to add progress indication during generation
+# - Consider adding volume control for TTS output
+# - Consider adding voice selection/management features
+
+
 class TTSControls(QWidget):
     tts_generated = pyqtSignal(bytes)  # Emitted when TTS generates audio
 

@@ -38,3 +38,15 @@ ui:
   window_size:
     - 800
     - 600
+# TODO: Configuration Status
+# - Basic config structure in place
+# - Need to add:
+#   1. TTS-specific settings (model paths, voice profiles)
+#   2. Audio processing settings (normalization, resampling)
+#   3. Default voice reference settings
+#   4. Error handling preferences
+# - Consider:
+#   1. Separate config for each TTS provider
+#   2. Voice profile management
+#   3. Audio quality settings
+#   4. Resource paths configuration

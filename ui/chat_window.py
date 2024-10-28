@@ -262,3 +262,13 @@ class ChatWindow(QMainWindow):
         except Exception as e:
             print(f"!!! Error playing TTS audio: {e}")
             print(traceback.format_exc())
+
+
+# TODO: Audio Integration Status
+# - Basic audio playback working for recordings
+# - TTS playback needs verification
+# - Consider adding:
+#   1. Volume control for TTS playback
+#   2. Progress indicator during TTS generation
+#   3. Error feedback in UI
+#   4. Queue system for multiple TTS requests

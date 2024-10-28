@@ -56,3 +56,18 @@ class F5TTSProvider(TextToSpeechProvider):
         except Exception as e:
             await self._event_bus.emit(Event(EventType.ERROR, error=e))
             raise
+
+
+# TODO: F5-TTS Provider Status
+# - Basic provider structure is in place
+# - CLI command execution is set up but not producing output
+# - Need to verify:
+#   1. F5-TTS model installation
+#   2. CUDA/CPU compatibility
+#   3. Audio format compatibility
+#   4. Reference audio requirements
+# - Consider adding:
+#   1. Model download/verification
+#   2. Voice profile management
+#   3. Audio preprocessing for reference files
+#   4. Progress callbacks during generation
