@@ -16,13 +16,11 @@ from core.interfaces.audio import AudioInputProvider
 from core.interfaces.speech import SpeechToTextProvider
 from core.interfaces.assistant import AssistantProvider
 from core.interfaces.clipboard import ClipboardProvider
-from qasync import QEventLoop  # Add this import
+from qasync import QEventLoop
 
 
 class Application:
-    CONFIG_PATH = (
-        "app-settings.yaml"  # Changed from os.path.join("config", "app-settings.yaml")
-    )
+    CONFIG_PATH = "app-settings.yaml"
 
     def __init__(self):
         self.app = QApplication(sys.argv)
@@ -33,9 +31,7 @@ class Application:
         self.loop = QEventLoop(self.app)
         asyncio.set_event_loop(self.loop)
 
-        print(
-            f"Loading config from: {os.path.abspath(self.CONFIG_PATH)}"
-        )  # Debug print
+        print(f"Loading config from: {os.path.abspath(self.CONFIG_PATH)}")
         self.config = AppConfig.load(self.CONFIG_PATH)
         self._setup_event_handling()
 

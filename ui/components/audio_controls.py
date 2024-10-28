@@ -180,8 +180,9 @@ class AudioControls(QWidget):
             print("\n=== Playing test sound ===")
             output_device_id = self.output_combo.currentData()
             self._provider.set_output_device(output_device_id)
-            print(f">>> Using output device ID: {output_device_id}")
-            print(f">>> Playing test sound from: {self._test_sound_path}")
+            print(
+                f">>> Using output device: {self.output_combo.currentText()}"
+            )  # Log device name instead of ID
 
             # Disable buttons during playback
             self.test_sound_button.setEnabled(False)
@@ -218,41 +219,26 @@ class AudioControls(QWidget):
             print(traceback.format_exc())
 
     def _load_devices(self):
+        """Load available audio devices"""
         devices = self._provider.get_devices()
-        default_input_name = None
-        default_output_name = None
-
-        try:
-            registry = ProviderRegistry.get_instance()
-            config = registry.get_provider_config(AudioInputProvider)
-            default_input_name = config.get("input_device")
-            default_output_name = config.get("output_device")
-        except Exception as e:
-            print(f"!!! Error getting device config: {e}")
 
         # Load input devices
-        input_devices = devices.get("input", [])
-        default_input_index = 0
-        for i, device in enumerate(input_devices):
+        self.input_combo.clear()
+        for device in devices.get("input", []):
             self.input_combo.addItem(device["name"], device["id"])
-            if default_input_name and default_input_name in device["name"]:
-                default_input_index = i
-
-        if self.input_combo.count() > 0:
-            self.input_combo.setCurrentIndex(default_input_index)
-            print(f">>> Using input device: {self.input_combo.currentText()}")
 
         # Load output devices
-        output_devices = devices.get("output", [])
-        default_output_index = 0
-        for i, device in enumerate(output_devices):
+        self.output_combo.clear()
+        for device in devices.get("output", []):
             self.output_combo.addItem(device["name"], device["id"])
-            if default_output_name and default_output_name in device["name"]:
-                default_output_index = i
 
-        if self.output_combo.count() > 0:
-            self.output_combo.setCurrentIndex(default_output_index)
-            print(f">>> Using output device: {self.output_combo.currentText()}")
+        # Set default devices without triggering the change event
+        self.input_combo.setCurrentText("default")
+        self.output_combo.setCurrentText("default")
+
+        # Only now connect the change signals
+        self.input_combo.currentIndexChanged.connect(self._on_input_device_changed)
+        self.output_combo.currentIndexChanged.connect(self._on_output_device_changed)
 
     def _on_input_device_changed(self, index: int):
         if index >= 0:
@@ -262,8 +248,7 @@ class AudioControls(QWidget):
     def _on_output_device_changed(self, index: int):
         if index >= 0:
             device_id = self.output_combo.currentData()
-            print(f">>> Setting output device ID to: {device_id}")
-            self._provider.set_output_device(device_id)  # Set the output device
+            self._provider.set_output_device(device_id)  # Remove the log here
             self.output_device_changed.emit(device_id)
 
     def _on_record_clicked(self, checked: bool):

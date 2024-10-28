@@ -1,7 +1,37 @@
-app:
+assistant:
+  provider: anthropic
+  config:
+    temperature: 0.7
+    max_tokens: 1024
+    top_p: 1.0
+audio:
+  config:
+    channels: 1
+    chunk_size: 1024
+    sample_rate: 16000
+    input_device: "default"
+    output_device: "default"
+  provider: pyaudio
+clipboard:
+  config: {}
+  provider: qt
+speech:
+  provider: whisper
+  config:
+    whisper:
+      model: "base"
+    deepgram:
+      model: "nova-2"
+      language: "en"
+      smart_format: true
+      encoding: "linear16"
+ui:
   theme:
-    background_color: "#000000"
-    text_color: "#39FF14"
-    accent_color: "#39FF14"
-  input_device: "default"
-  output_device: "default"
+    mode: dark
+    colors:
+      background: "#000000"
+      text: "#39FF14"
+      accent: "#39FF14"
+  window_size:
+    - 800
+    - 600

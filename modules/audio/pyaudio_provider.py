@@ -4,7 +4,7 @@ from typing import Optional, BinaryIO
 from core.interfaces.audio import AudioInputProvider, AudioOutputProvider, AudioConfig
 import io
 import struct
-import traceback  # Add this import
+import traceback
 import numpy as np
 import time
 
@@ -168,8 +168,9 @@ class PyAudioProvider(AudioInputProvider, AudioOutputProvider):
 
     def set_output_device(self, device_id: int) -> None:
         """Set the output device ID for playback"""
-        self._output_device_id = device_id
-        print(f">>> Output device ID set to: {device_id}")
+        if device_id != self._output_device_id:  # Only log if actually changing
+            self._output_device_id = device_id
+            print(f">>> Output device ID set to: {device_id}")
 
     def play_audio(self, audio_data: Optional[BinaryIO] = None) -> None:
         """Play audio from either a file or recorded frames"""
