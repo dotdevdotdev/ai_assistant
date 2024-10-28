@@ -1,0 +1,40 @@
+# Core UI
+PyQt6>=6.4.0
+
+# Configuration
+PyYAML>=6.0.1
+
+# Audio Processing
+pyaudio>=0.2.13
+sounddevice>=0.4.6
+soundfile>=0.12.1
+pydub>=0.25.1
+numpy>=1.24.0
+
+# Speech Recognition
+openai-whisper>=20231117
+deepgram-sdk>=2.11.0
+
+# AI/Assistant Integration
+anthropic>=0.3.0
+openai>=1.0.0
+
+# Text-to-Speech
+elevenlabs>=0.2.24
+pyttsx3>=2.90
+
+# Utility Libraries
+pyautogui>=0.9.54
+pyperclip>=1.8.2
+
+# Development Tools
+black>=23.0.0
+pylint>=2.17.0
+mypy>=1.0.0
+pytest>=7.0.0
+pytest-qt>=4.2.0
+pytest-cov>=4.1.0
+
+# Type Stubs
+types-PyYAML>=6.0.12
+types-pyperclip>=1.8.2

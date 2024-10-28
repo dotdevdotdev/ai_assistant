@@ -1,37 +1,7 @@
 app:
-  input_device: "default"
-  output_device: "default"
   theme:
-    accent_color: "#39FF14"
     background_color: "#000000"
     text_color: "#39FF14"
-
-audio:
-  provider: "pyaudio"
-  config:
-    sample_rate: 48000 # Use native device rate for best quality
-    channels: 1
-    chunk_size: 1024
-
-speech:
-  provider: "deepgram"
-  config:
-    deepgram:
-      model: "nova-2"
-      language: "en"
-      smart_format: true
-      encoding: "linear16"
-      channels: 1
-      sample_rate: 48000 # Match device's native rate
-
-assistant:
-  provider: "anthropic"
-  config: {}
-
-clipboard:
-  provider: "qt"
-  config: {}
-
-ui:
-  theme: "dark"
-  window_size: [800, 600]
+    accent_color: "#39FF14"
+  input_device: "default"
+  output_device: "default"

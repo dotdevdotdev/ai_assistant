@@ -882,3 +882,18 @@
 2024-10-27 13:29:12,542 [DEBUG] load_ssl_context verify=True cert=None trust_env=True http2=False
 2024-10-27 13:29:12,543 [DEBUG] load_verify_locations cafile='/home/dotdev/venvs/voice_venv/lib/python3.10/site-packages/certifi/cacert.pem'
 2024-10-27 13:35:34,281 [INFO] === AI Assistant Shutdown ===
+2024-10-27 13:48:51,849 [INFO] === Starting AI Assistant ===
+2024-10-27 13:48:51,918 [DEBUG] Using selector: _Selector
+2024-10-27 13:48:51,920 [DEBUG] load_ssl_context verify=True cert=None trust_env=True http2=False
+2024-10-27 13:48:51,921 [DEBUG] load_verify_locations cafile='/home/dotdev/venvs/ai_venv/lib/python3.10/site-packages/certifi/cacert.pem'
+2024-10-27 13:49:00,414 [INFO] === AI Assistant Shutdown ===
+2024-10-28 06:48:18,884 [INFO] === Starting AI Assistant ===
+2024-10-28 06:48:18,984 [DEBUG] Using selector: _Selector
+2024-10-28 06:48:19,785 [DEBUG] load_ssl_context verify=True cert=None trust_env=True http2=False
+2024-10-28 06:48:19,786 [DEBUG] load_verify_locations cafile='/home/dotdev/venvs/ai_venv/lib/python3.10/site-packages/certifi/cacert.pem'
+2024-10-28 06:48:44,433 [INFO] === AI Assistant Shutdown ===
+2024-10-28 06:50:04,782 [INFO] === Starting AI Assistant ===
+2024-10-28 06:50:04,872 [DEBUG] Using selector: _Selector
+2024-10-28 06:50:05,703 [DEBUG] load_ssl_context verify=True cert=None trust_env=True http2=False
+2024-10-28 06:50:05,704 [DEBUG] load_verify_locations cafile='/home/dotdev/venvs/ai_venv/lib/python3.10/site-packages/certifi/cacert.pem'
+2024-10-28 06:51:15,150 [INFO] === AI Assistant Shutdown ===

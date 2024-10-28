@@ -1,0 +1,260 @@
+# AI Assistant Rules
+
+## Core Behaviors
+
+MUST Keep responses concise and conversational without exception
+MUST Use casual but professional language at all times
+MUST Provide only direct, actionable responses
+MUST Maintain clarity and precision in all responses
+MUST Support all suggestions with concrete examples
+NEVER Use filler words like "certainly", "definitely", etc. under any circumstances
+NEVER Include unnecessary apologies or overly formal language whatsoever
+NEVER Make vague or ambiguous suggestions in any context
+NEVER Leave any recommendation open to interpretation
+NEVER Skip over important technical details
+
+## Code Assistance
+
+MUST Tag every code block with both language and filepath without exception
+MUST Show complete context around all code changes
+MUST Thoroughly analyze impact on all connected components
+MUST Validate suggestions against existing patterns
+MUST Test suggestions for compatibility
+
+## Learned Best Practices
+
+MUST Tag all code blocks with complete filepath and language information
+MUST Provide full context for every code change
+MUST Include complete file contents for new files
+MUST Implement proper thread safety in audio processing
+MUST Follow established error handling patterns
+MUST Maintain consistent event emission patterns
+
+## Common Pitfalls
+
+NEVER Modify code without considering the event bus architecture
+NEVER Mix synchronous and asynchronous patterns
+NEVER Leave resource cleanup unhandled
+NEVER Allow disconnected signal/slot connections
+NEVER Break UI theme consistency
+NEVER Bypass the manager registry pattern
+
+## Response Format
+
+MUST Use markdown formatting for all responses
+MUST Include language and filepath in every code block
+MUST Group all related changes together
+MUST Provide relevant context for all changes
+MUST Keep all explanations focused and actionable
+
+## Error Handling
+
+MUST Implement comprehensive error handling
+MUST Account for all possible edge cases
+MUST Follow established logging patterns
+MUST Include proper resource cleanup
+MUST Validate error recovery paths
+
+## Project-Specific
+
+MUST Design all changes around the event-driven architecture
+MUST Adhere to the manager registry pattern without exception
+MUST Ensure audio pipeline compatibility
+MUST Follow UI theme specifications exactly
+MUST Maintain all signal/slot connection patterns
+
+## Environment Variables
+
+MUST Use COMPANY_API_KEY naming convention for all API keys
+MUST Assume environment variables are pre-loaded
+NEVER Use dotenv or similar environment loading libraries
+
+## Settings Files
+
+MUST Use YAML format for all settings and configuration files
+MUST Include proper YAML validation in config loading
+MUST Follow established YAML structure patterns
+MUST Document all YAML configuration options
+MUST Maintain backwards compatibility in YAML schemas
+
+## Documentation URLs
+
+MUST Reference these official documentation sources:
+
+Core Libraries:
+
+- PyQt6: https://doc.qt.io/qtforpython-6/
+- OpenAI API: https://platform.openai.com/docs
+- Anthropic API: https://docs.anthropic.com/claude/
+- Deepgram: https://developers.deepgram.com/docs/
+- ElevenLabs: https://docs.elevenlabs.io/
+
+Audio Processing:
+
+- PyAudio: https://people.csail.mit.edu/hubert/pyaudio/docs/
+- SoundDevice: https://python-sounddevice.readthedocs.io/
+- pyttsx3: https://pyttsx3.readthedocs.io/
+- pydub: https://github.com/jiaaro/pydub#documentation
+- soundfile: https://pysoundfile.readthedocs.io/
+
+Utility Libraries:
+
+- pyautogui: https://pyautogui.readthedocs.io/
+- pyperclip: https://pyperclip.readthedocs.io/
+- numpy: https://numpy.org/doc/
+- flask: https://flask.palletsprojects.com/
+- PyYAML: https://pyyaml.org/wiki/PyYAMLDocumentation
+
+MUST Consult relevant documentation when implementing features
+MUST Keep documentation references up to date
+MUST Follow each library's best practices and conventions
+MUST Document any deviations from standard library patterns
+NEVER Implement features without consulting official documentation
+
+## Audio Configuration
+
+MUST Use device default sample rate from PyAudio device info
+MUST Handle sample rate validation gracefully
+MUST Log sample rate detection and usage
+MUST NOT Force specific sample rates without checking device capabilities
+
+Example device sample rate detection:
+
+```python
+device_info = self._audio.get_device_info_by_index(config.device_id)
+sample_rate = int(device_info["defaultSampleRate"])
+```
+
+## Audio Stream Management
+
+- MUST Use device's default sample rate from PyAudio device info (never hardcode)
+- MUST Configure buffer size as multiple of chunk size (typically 4x) to prevent overflow
+- MUST Set exception_on_overflow=False in PyAudio read operations for graceful handling
+
+Example buffer size configuration:
+
+```python
+self._buffer_size = config.chunk_size * 4
+```
+
+## Audio Stream Shutdown
+
+MUST Follow exact shutdown sequence:
+
+- Set stop flag first
+- Process all buffered data using get_read_available()
+- Stop stream only after buffer empty
+- Close stream and cleanup resources
+- Reset all state flags
+
+Example proper shutdown:
+
+```python
+# First set flags
+self._stop_requested = True
+self._is_processing = True
+
+# Process remaining buffer
+while self._stream.is_active() and self._stream.get_read_available() > 0:
+    data = self._stream.read(chunk_size, exception_on_overflow=False)
+    if data:
+        process_and_store_audio(data)
+
+# Only then stop stream
+self._stream.stop_stream()
+self._stream.close()
+```
+
+## Audio Buffer Processing
+
+MUST Process all buffered audio before stream closure
+MUST Use consistent sample rate throughout processing
+MUST Maintain audio quality during shutdown
+MUST Log buffer metrics during processing
+MUST Handle all exceptions during buffer processing
+MUST Reset state in finally block
+MUST Clean up resources on error
+MUST Maintain consistent state after errors
+
+## Audio Stream Pitfalls
+
+NEVER Stop stream before processing remaining buffer
+NEVER Discard buffered audio data during shutdown
+NEVER Close stream while data is still available
+NEVER Skip audio processing during shutdown
+NEVER Mix buffer sizes during processing
+NEVER Leave streams open after errors
+
+## Logging Conventions
+
+- MUST Use logging prefixes for clarity:
+  - `===` for section boundaries and major state changes
+  - `>>>` for important events and successful operations
+  - `!!!` for errors and warnings
+- MUST Include detailed audio metrics in debug logs (sample rates, buffer sizes, min/max values)
+- MUST Log all transcription pipeline stages: audio capture, processing, transcription, and UI updates
+
+## Audio Transcription Pipeline
+
+- MUST Follow these steps for audio transcription:
+
+  1. Use PyAudio's paFloat32 format for raw audio capture
+  2. Buffer at least 2 seconds of audio before processing
+  3. Normalize audio data to [-1, 1] range before resampling
+  4. Resample audio to 16kHz for Whisper compatibility
+  5. Maintain 0.5 second overlap between processing chunks
+
+- MUST Handle sample rate conversion:
+
+  - Detect source sample rate from first audio chunk
+  - Always resample to 16kHz for Whisper
+  - Use scipy.signal.resample for high-quality resampling
+
+- MUST Implement proper buffer management:
+  - Store raw audio chunks in list instead of bytearray
+  - Calculate total samples across all chunks
+  - Keep overlap from previous processing window
+  - Clear buffer after processing to prevent memory growth
+
+Example audio processing sequence:
+
+```python
+# Convert bytes to numpy array
+chunk_data = np.frombuffer(chunk, dtype=np.float32)
+
+# Normalize if needed
+if np.max(np.abs(audio_data)) > 1.0:
+    audio_data = audio_data / np.max(np.abs(audio_data))
+
+# Resample to target rate
+resampled = signal.resample(audio_data, target_length)
+```
+
+## Async/Await Best Practices
+
+MUST Define WebSocket event handlers as async functions when using async queues or event buses
+MUST Use iscoroutinefunction to properly handle mixed sync/async callbacks in event systems
+MUST Maintain clear async boundaries between real-time audio capture and network services
+MUST Handle WebSocket connection lifecycle with proper async/await patterns
+
+# Deepgram-Specific Patterns
+
+MUST Create Deepgram WebSocket connections in two steps:
+
+1. Create live client: `live_client = client.listen.live.v("1")`
+2. Start connection without await: `connection = live_client.start(options)`
+   MUST Register event handlers on live client before starting connection
+   MUST Use sync event registration with async handlers:
+
+```python
+# Correct pattern:
+live_client = client.listen.live.v("1")
+async def on_message(msg): ...
+live_client.on("Results", on_message)
+connection = live_client.start(options)
+```
+
+NEVER Mix sync and async callbacks without explicit handling
+NEVER Use recursive event emission in error handlers
+NEVER Await the start() method of Deepgram WebSocket connections
+NEVER Register handlers after starting the connection
