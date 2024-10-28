@@ -27,7 +27,7 @@ dist-ssr
 src-tauri/target
 
 # Python
-__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 
@@ -49,4 +49,4 @@ env/
 /data/
 /data/**
 
-app-settings.yaml
+recordings/
