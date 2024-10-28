@@ -1,18 +1,21 @@
 import sounddevice as sd
 import numpy as np
-from io import BytesIO
 import wave
-from typing import Optional
-from core.interfaces.audio import AudioInputProvider, AudioOutputProvider, AudioConfig
-from core.events import EventBus, Event, EventType
+import io
+from typing import Dict, List, Optional, Union
+from core.interfaces.audio import AudioDeviceManager, AudioConfig
 
 
-class SoundDeviceProvider(AudioInputProvider, AudioOutputProvider):
-    def __init__(self):
-        self._stream: Optional[sd.InputStream] = None
-        self._config: Optional[AudioConfig] = None
-        self._event_bus = EventBus.get_instance()
-        self._playback_stream: Optional[sd.OutputStream] = None
+class SoundDeviceProvider(AudioDeviceManager):
+    def __init__(self, config: dict):
+        self._config = config
+        self._stream = None
+        self._recording = False
+        self._processing = False
+        self._recorded_frames = []
+        self._input_device_id = None
+        self._output_device_id = None
+        self._playback_stream = None
 
     def start_stream(self, config: AudioConfig) -> None:
         if self._stream is not None:
@@ -57,7 +60,7 @@ class SoundDeviceProvider(AudioInputProvider, AudioOutputProvider):
                 )
         return devices
 
-    def play_audio(self, audio_data: BytesIO) -> None:
+    def play_audio(self, audio_data: Union[bytes, io.BytesIO]) -> None:
         if self._playback_stream is not None:
             self.stop_playback()
 

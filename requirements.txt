@@ -6,7 +6,7 @@ typing-extensions
 
 # Audio Processing
 pyaudio
-sounddevice
+sounddevice>=0.4.6
 soundfile
 pydub
 numpy
@@ -22,11 +22,11 @@ elevenlabs
 pyttsx3
 git+https://github.com/SWivid/F5-TTS.git
 
-# PyTorch (CPU-only)
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.3.0+cpu
-torchaudio==2.3.0+cpu
-torchvision==0.18.0+cpu
+# PyTorch with CUDA support (for CUDA 12.x)
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch>=2.3.0
+torchaudio>=2.3.0
+torchvision>=0.18.0
 
 # Utility Libraries
 pyautogui
