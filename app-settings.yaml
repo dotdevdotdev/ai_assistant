@@ -41,11 +41,12 @@ ui:
 llm:
   providers:
     anthropic:
-      default_model: "claude-3-sonnet"
+      default_model: "claude-3-haiku-20240307"
       models:
-        - "claude-3-opus"
-        - "claude-3-sonnet"
-        - "claude-3-haiku"
+        - "claude-3-opus-latest"
+        - "claude-3-sonnet-20240229"
+        - "claude-3-haiku-20240307"
+        - "claude-3-5-sonnet-latest"
     openai:
       default_model: "gpt-4"
       models:
