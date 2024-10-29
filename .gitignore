@@ -50,3 +50,4 @@ env/
 /data/**
 
 recordings/
+resources/audio/**
