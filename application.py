@@ -146,7 +146,8 @@ class Application:
 
     def _setup_style(self):
         """Apply application styling"""
-        theme = AppTheme(dark_mode=True)  # TODO: Get from config
+        theme_colors = self.config.ui["theme"]["colors"]
+        theme = AppTheme(colors=theme_colors)
         self.app.setPalette(theme.get_palette())
         self.app.setStyleSheet(theme.get_stylesheet())
 
