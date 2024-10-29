@@ -7,21 +7,24 @@ class MessageWidget(QWidget):
     def __init__(self, message: Message, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(10, 5, 10, 5)
 
-        role_label = QLabel(f"{message.role.capitalize()}:")
-        role_label.setStyleSheet(
-            f"font-weight: bold; color: {'#0078d4' if message.role == 'assistant' else '#cccccc'};"
+        # Create styled name label with neon blue color
+        name_text = f"{message.role}:"
+        name_label = QLabel(
+            f'<span style="color: #00BFFF; font-size: 14pt;">{name_text}</span>'
         )
+        name_label.setTextFormat(Qt.TextFormat.RichText)
 
+        # Create content label
         content_label = QLabel(message.content)
         content_label.setWordWrap(True)
         content_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
 
-        self.layout.addWidget(role_label)
+        self.layout.addWidget(name_label)
         self.layout.addWidget(content_label)
-        self.layout.setContentsMargins(10, 5, 10, 5)
 
 
 class MessageView(QScrollArea):
@@ -41,14 +44,17 @@ class MessageView(QScrollArea):
         self._messages = []
 
     def add_message(self, message: Message):
-        msg_widget = MessageWidget(message, self)
-        self.layout.addWidget(msg_widget)
+        """Add a message to the view"""
+        # Create and add message widget
+        message_widget = MessageWidget(message, self)
+        self.layout.addWidget(message_widget)
         self._messages.append(message)
 
         # Scroll to bottom
         self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
 
     def clear_messages(self):
+        """Clear all messages from the view"""
         while self.layout.count():
             item = self.layout.takeAt(0)
             if item.widget():
@@ -56,4 +62,5 @@ class MessageView(QScrollArea):
         self._messages.clear()
 
     def get_messages(self) -> list[Message]:
+        """Get all messages in the view"""
         return self._messages.copy()

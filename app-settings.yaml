@@ -29,6 +29,7 @@ speech:
       model: "F5-TTS"
       reference_audio_dir: "reference_audio"
 ui:
+  username: "User"
   theme:
     mode: dark
     colors:

@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
 )
-from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtCore import Qt, QSettings, QTimer
 from .components.message_view import MessageView
 from .components.input_area import InputArea
 from .components.assistant_selector import AssistantSelector
@@ -89,17 +89,13 @@ class ChatWindow(QMainWindow):
 
         # Input area
         self.input_area = InputArea()
-        self.input_area.message_submitted.connect(self.llm_controls.send_message)
+        self.input_area.message_submitted.connect(self._on_message_submitted)
         self.input_area.recording_toggled.connect(
             self.audio_controls.record_button.setChecked
         )
 
-        # Connect LLM response to message view
-        self.llm_controls.response_ready.connect(
-            lambda response: self.message_view.add_message(
-                Message("assistant", response)
-            )
-        )
+        # Connect LLM response to message view through our handler
+        self.llm_controls.response_ready.connect(self._on_llm_response)
 
         # Add widgets to splitter
         splitter.addWidget(top_widget)
@@ -113,28 +109,32 @@ class ChatWindow(QMainWindow):
 
         layout.addWidget(splitter)
 
-    async def _on_message_submitted(self, text: str):
-        # Add user message to view
-        user_message = Message("user", text)
+    def _get_username(self) -> str:
+        """Get username from config or default to 'User'"""
+        return self.app.config.ui.get("username", "User")
+
+    def _on_message_submitted(self, message: str):
+        """Handle user message submission"""
+        # Add user message to view with proper name immediately
+        username = self._get_username()
+        user_message = Message(username, message)
         self.message_view.add_message(user_message)
 
-        # Get assistant response
-        try:
-            assistant = ProviderRegistry.get_instance().get_provider(AssistantProvider)
-            messages = self.message_view.get_messages()
+        # Forward to LLM controls asynchronously
+        QTimer.singleShot(0, lambda: self.llm_controls.send_message(message))
 
-            # Create assistant message placeholder
-            assistant_message = Message("assistant", "")
-            self.message_view.add_message(assistant_message)
+    def _on_llm_response(self, response: str):
+        """Handle LLM response with proper assistant name"""
+        # Get assistant name if one is selected
+        assistant_name = "Assistant"
+        if hasattr(self, "assistant_controls"):
+            current_assistant = self.assistant_controls.get_current_assistant()
+            if current_assistant:
+                assistant_name = current_assistant.name
 
-            full_response = ""
-            async for chunk in assistant.send_message(messages):
-                full_response += chunk
-                assistant_message.content = full_response
-                # Need to implement message update mechanism
-
-        except Exception as e:
-            await self._event_bus.emit(Event(EventType.ERROR, error=e))
+        # Add response to message view
+        assistant_message = Message(assistant_name, response)
+        self.message_view.add_message(assistant_message)
 
     def _on_model_changed(self, model: str, config: dict):
         # Update the assistant configuration

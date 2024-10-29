@@ -112,21 +112,29 @@ class LLMControls(QWidget):
             print(f"\n=== Sending message to model ===")
             provider = ProviderRegistry.get_instance().get_provider(LLMProvider)
 
-            # Get system prompt if assistant is selected
+            # Get system prompt and assistant info if selected
             window = self.window()
             system_prompt = None
+            assistant_name = None
             if hasattr(window, "assistant_controls"):
-                system_prompt = window.assistant_controls.get_current_system_prompt()
-
-            # If no assistant-specific prompt, use default
-            if not system_prompt:
-                system_prompt = self._app.config.llm.default_system_prompt
-                print(f">>> Using default system prompt: {system_prompt}")
-            else:
-                print(f">>> Using assistant system prompt: {system_prompt[:100]}...")
+                current_assistant = window.assistant_controls.get_current_assistant()
+                if current_assistant:
+                    system_prompt = current_assistant.system_prompt
+                    assistant_name = current_assistant.name
+                    print(f">>> Using assistant: {assistant_name}")
+                    print(f">>> Using system prompt: {system_prompt[:100]}...")
+                else:
+                    system_prompt = self._app.config.llm.default_system_prompt
+                    print(f">>> Using default system prompt: {system_prompt}")
 
             response = provider.generate_response(message, system_prompt=system_prompt)
-            self.response_ready.emit(response)
+
+            # Format response with assistant name if available
+            formatted_response = (
+                f"{assistant_name}: {response}" if assistant_name else response
+            )
+            self.response_ready.emit(formatted_response)
+
         except Exception as e:
             print(f"!!! Error generating response: {str(e)}")
             self.response_ready.emit(f"Error: {str(e)}")

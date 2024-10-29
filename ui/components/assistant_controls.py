@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import pyqtSignal
 from typing import Optional
+from config.settings import AssistantConfig
 
 
 class AssistantControls(QWidget):
@@ -84,13 +85,20 @@ class AssistantControls(QWidget):
 
             traceback.print_exc()
 
-    def get_current_system_prompt(self) -> Optional[str]:
-        """Get the current assistant's system prompt"""
+    def get_current_assistant(self) -> Optional[AssistantConfig]:
+        """Get the current assistant config if one is selected"""
         assistant_name = self.assistant_combo.currentText()
         if assistant_name == "No Assistant":
+            return None
+
+        return next(a for a in self._assistants if a.name == assistant_name)
+
+    def get_current_system_prompt(self) -> Optional[str]:
+        """Get the current assistant's system prompt"""
+        assistant = self.get_current_assistant()
+        if not assistant:
             print(">>> No assistant selected, no system prompt")
             return None
 
-        assistant = next(a for a in self._assistants if a.name == assistant_name)
-        print(f">>> Getting system prompt for: {assistant_name}")
+        print(f">>> Getting system prompt for: {assistant.name}")
         return assistant.system_prompt

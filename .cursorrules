@@ -1075,3 +1075,68 @@ self.registry.register_provider(LLMProvider, composite_provider)
 - Consistent model handling
 - Proper resource management
 - Clear responsibility separation
+
+## Message Display Patterns
+
+MUST Follow these message display rules:
+
+1. Message Widget Structure:
+
+- Create dedicated widget for each message
+- Use proper layout management
+- Handle text wrapping correctly
+- Enable text selection
+- Maintain consistent styling
+
+Example message widget:
+
+```python
+class MessageWidget(QWidget):
+    def __init__(self, message: Message, parent=None):
+        super().__init__(parent)
+        self.layout = QVBoxLayout(self)
+
+        # Create styled name label with rich text
+        name_label = QLabel(f'<span style="color: #39FF14; font-size: 14pt;">{message.role}:</span>')
+        name_label.setTextFormat(Qt.TextFormat.RichText)
+
+        # Create selectable content label
+        content_label = QLabel(message.content)
+        content_label.setWordWrap(True)
+        content_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.layout.addWidget(name_label)
+        self.layout.addWidget(content_label)
+```
+
+2. Message View Organization:
+
+- Use QScrollArea for scrollable content
+- Maintain message history
+- Auto-scroll to new messages
+- Handle proper layout spacing
+- Support message clearing
+
+3. Common Pitfalls:
+
+- NEVER use raw text append operations
+- NEVER mix styling with content
+- NEVER skip proper layout management
+- NEVER ignore text selection needs
+- NEVER hardcode visual properties
+
+4. Message Styling:
+
+- Use consistent color scheme
+- Apply proper font sizing
+- Enable rich text where needed
+- Maintain visual hierarchy
+- Follow theme guidelines
+
+5. Benefits:
+
+- Better memory management
+- Proper widget lifecycle
+- Consistent user experience
+- Maintainable styling
+- Proper event handling
