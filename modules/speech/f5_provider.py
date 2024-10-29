@@ -1,45 +1,75 @@
-import os
 import subprocess
-import logging
-import io
-from pathlib import Path
-from core.interfaces.speech import TextToSpeechProvider
-import wave
+import os
+import shutil
+from typing import Optional
+import pipes  # For proper shell escaping
 
 
-class F5TTSProvider(TextToSpeechProvider):
-    def __init__(self, model_name: str = "F5-TTS"):
-        self.model_name = model_name
-        # Create fixed output directory in project root
-        self.output_dir = Path("resources/audio/f5tts")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.output_file = self.output_dir / "f5tts_output.wav"
+class F5TTSProvider:
+    def __init__(self, config: dict = None, **kwargs):
+        """Initialize F5TTS provider
 
-    async def synthesize(self, text: str, ref_audio: str) -> bytes:
-        """Generate speech using F5-TTS"""
+        Args:
+            config: Dictionary that may contain:
+                - model: Name of F5-TTS model to use
+                - reference_audio_dir: Directory containing reference audio files
+            **kwargs: Legacy support for direct parameters
+        """
+        if config is None:
+            config = {}
+
+        # Support legacy model_name parameter
+        if "model_name" in kwargs:
+            config["model"] = kwargs["model_name"]
+
+        self._config = config
+
+        # Support both 'model' and 'model_name' for backwards compatibility
+        self._model = (
+            self._config.get("model") or self._config.get("model_name") or "F5-TTS"
+        )
+
+        self._ref_audio_dir = self._config.get("reference_audio_dir", "reference_audio")
+        self._output_dir = "resources/audio/f5tts"
+        os.makedirs(self._output_dir, exist_ok=True)
+
+    async def synthesize(self, text: str, ref_audio: Optional[str] = None) -> bytes:
+        """Synthesize speech from text using F5-TTS"""
         try:
-            print(f"\n=== Generating speech with F5-TTS ===")
-            print(f">>> Model: {self.model_name}")
+            if not ref_audio and os.path.exists(self._ref_audio_dir):
+                # Use first wav file in reference directory
+                wav_files = [
+                    f for f in os.listdir(self._ref_audio_dir) if f.endswith(".wav")
+                ]
+                if wav_files:
+                    ref_audio = os.path.join(self._ref_audio_dir, wav_files[0])
+                    print(f">>> Using reference audio: {ref_audio}")
+
+            # Remove existing output file
+            output_file = os.path.join(self._output_dir, "infer_cli_out.wav")
+            if os.path.exists(output_file):
+                print(">>> Removing existing output file")
+                os.remove(output_file)
+
+            print("\n=== Generating speech with F5-TTS ===")
+            print(f">>> Model: {self._model}")
             print(f">>> Reference audio: {ref_audio}")
             print(f">>> Text: {text}")
-            print(f">>> Output dir: {self.output_dir}")
+            print(f">>> Output dir: {self._output_dir}")
 
-            # Clean up any existing output file
-            actual_output = self.output_dir / "infer_cli_out.wav"
-            if actual_output.exists():
-                print(">>> Removing existing output file")
-                actual_output.unlink()
+            # Properly escape the text and ref_audio path for shell
+            escaped_text = pipes.quote(text)
+            escaped_ref_audio = pipes.quote(ref_audio) if ref_audio else ""
 
-            # Ensure text is properly quoted for shell
-            text = f'"{text}"'  # Add quotes around text
-            ref_text = '""'  # Empty quoted string for ref text
-
-            # Build command as a single string
-            cmd = f'f5-tts_infer-cli --model {self.model_name} --ref_audio "{ref_audio}" --ref_text {ref_text} --gen_text {text} --output "{self.output_dir}"'
+            # Build command with properly escaped arguments
+            cmd = f"f5-tts_infer-cli --model {self._model}"
+            if ref_audio:
+                cmd += f" --ref_audio {escaped_ref_audio}"
+            cmd += f' --ref_text "" --gen_text {escaped_text} --output "{self._output_dir}"'
 
             print(f">>> Executing command: {cmd}")
 
-            # Use shell=True to handle the quoting properly
+            # Execute F5-TTS
             process = subprocess.Popen(
                 cmd,
                 shell=True,
@@ -47,7 +77,6 @@ class F5TTSProvider(TextToSpeechProvider):
                 stderr=subprocess.PIPE,
                 text=True,
             )
-
             stdout, stderr = process.communicate()
 
             if stdout:
@@ -62,32 +91,17 @@ class F5TTSProvider(TextToSpeechProvider):
                     f"F5-TTS failed with code {process.returncode}: {stderr}"
                 )
 
-            print(f">>> Checking for output file at: {actual_output}")
-            if not actual_output.exists():
+            # Check if output file exists
+            print(f">>> Checking for output file at: {output_file}")
+            if not os.path.exists(output_file):
                 raise FileNotFoundError(
-                    f"F5-TTS output file not found at {actual_output}"
+                    f"F5-TTS did not create output file at {output_file}"
                 )
 
-            # Get file size before reading
-            file_size = actual_output.stat().st_size
-            print(f">>> Output file size: {file_size} bytes")
-
-            # Read the generated audio file
-            with open(actual_output, "rb") as f:
+            # Read the audio data
+            with open(output_file, "rb") as f:
                 audio_data = f.read()
-
             print(f">>> Successfully read {len(audio_data)} bytes of audio data")
-
-            # Verify the WAV file structure
-            with wave.open(io.BytesIO(audio_data), "rb") as wf:
-                print(f">>> WAV file details:")
-                print(f"    Channels: {wf.getnchannels()}")
-                print(f"    Sample width: {wf.getsampwidth()}")
-                print(f"    Frame rate: {wf.getframerate()}")
-                print(f"    Number of frames: {wf.getnframes()}")
-                print(
-                    f"    Duration: {wf.getnframes() / wf.getframerate():.2f} seconds"
-                )
 
             return audio_data
 

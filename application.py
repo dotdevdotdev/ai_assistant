@@ -127,7 +127,16 @@ class Application:
             print("\n=== Setting up TTS provider ===")
             tts_config = self.config.speech.config.get("f5tts", {})
             print(f">>> TTS config: {tts_config}")
-            tts_provider = F5TTSProvider(model_name=tts_config.get("model", "F5-TTS"))
+
+            # Create provider config with model name if specified
+            provider_config = {
+                "model": tts_config.get("model", "F5-TTS"),
+                "reference_audio_dir": tts_config.get(
+                    "reference_audio_dir", "reference_audio"
+                ),
+            }
+
+            tts_provider = F5TTSProvider(config=provider_config)
             self.registry.register_provider(TextToSpeechProvider, tts_provider)
             print(">>> TTS provider registered")
 
