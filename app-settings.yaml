@@ -39,6 +39,7 @@ ui:
     - 800
     - 600
 llm:
+  default_system_prompt: "You are a conversational AI, speak in short sentences and use natural language."
   providers:
     anthropic:
       default_model: "claude-3-haiku-20240307"
@@ -52,3 +53,4 @@ llm:
       models:
         - "gpt-4"
         - "gpt-3.5-turbo"
+        - "gpt-4o-mini"

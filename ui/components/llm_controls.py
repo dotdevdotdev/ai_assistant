@@ -110,9 +110,22 @@ class LLMControls(QWidget):
         """Send message to current model and emit response"""
         try:
             print(f"\n=== Sending message to model ===")
-            # Get current provider from registry
             provider = ProviderRegistry.get_instance().get_provider(LLMProvider)
-            response = provider.generate_response(message)
+
+            # Get system prompt if assistant is selected
+            window = self.window()
+            system_prompt = None
+            if hasattr(window, "assistant_controls"):
+                system_prompt = window.assistant_controls.get_current_system_prompt()
+
+            # If no assistant-specific prompt, use default
+            if not system_prompt:
+                system_prompt = self._app.config.llm.default_system_prompt
+                print(f">>> Using default system prompt: {system_prompt}")
+            else:
+                print(f">>> Using assistant system prompt: {system_prompt[:100]}...")
+
+            response = provider.generate_response(message, system_prompt=system_prompt)
             self.response_ready.emit(response)
         except Exception as e:
             print(f"!!! Error generating response: {str(e)}")

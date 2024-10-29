@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import QApplication
 import traceback
 import io
 from .components.llm_controls import LLMControls
+from .components.assistant_controls import AssistantControls
 
 
 class ChatWindow(QMainWindow):
@@ -36,8 +37,15 @@ class ChatWindow(QMainWindow):
         super().__init__()
         self._event_bus = EventBus.get_instance()
         self._settings = QSettings("AIAssistant", "Chat")
-        self.setup_ui()
-        self.load_settings()
+        self._setup_pending = True
+
+    def set_app(self, app):
+        """Set application instance and complete setup"""
+        self.app = app
+        if self._setup_pending:
+            self.setup_ui()
+            self.load_settings()
+            self._setup_pending = False
 
     def setup_ui(self):
         self.setWindowTitle("AI Assistant")
@@ -59,10 +67,10 @@ class ChatWindow(QMainWindow):
         self.llm_controls = LLMControls()
         top_layout.addWidget(self.llm_controls)
 
-        # TODO: Remove assistant selector once LLM controls fully handle model selection
-        # self.assistant_selector = AssistantSelector()
-        # self.assistant_selector.model_changed.connect(self._on_model_changed)
-        # top_layout.addWidget(self.assistant_selector)
+        # Add Assistant controls
+        self.assistant_controls = AssistantControls(self.app.config.assistants)
+        self.assistant_controls.assistant_changed.connect(self._on_assistant_changed)
+        top_layout.addWidget(self.assistant_controls)
 
         # Then audio controls
         self.audio_controls = AudioControls()
@@ -282,6 +290,16 @@ class ChatWindow(QMainWindow):
         """Handle transcribed text"""
         self.input_area.text_edit.setPlainText(text)
         self.input_area.send_button.setEnabled(True)
+
+    def _on_assistant_changed(self, model: str, system_prompt: str):
+        """Handle assistant selection"""
+        if model:  # If an assistant was selected
+            # Find the provider:model format
+            for provider_name, provider in self.app._llm_providers.items():
+                if model in provider.get_available_models():
+                    full_model = f"{provider_name}: {model}"
+                    self.llm_controls.model_combo.setCurrentText(full_model)
+                    break
 
 
 # TODO: Audio Integration Status

@@ -1,7 +1,7 @@
 from core.interfaces.llm import LLMProvider
 from openai import OpenAI
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 
 class OpenAIProvider(LLMProvider):
@@ -21,11 +21,17 @@ class OpenAIProvider(LLMProvider):
             raise ValueError(f"Unknown model: {model_name}")
         self._current_model = model_name
 
-    def generate_response(self, message: str) -> str:
+    def generate_response(
+        self, message: str, system_prompt: Optional[str] = None
+    ) -> str:
         try:
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": message})
+
             response = self._client.chat.completions.create(
-                model=self._current_model,
-                messages=[{"role": "user", "content": message}],
+                model=self._current_model, messages=messages
             )
             return response.choices[0].message.content
         except Exception as e:

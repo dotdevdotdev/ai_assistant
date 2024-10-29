@@ -11,7 +11,27 @@ class AssistantConfig:
     description: str
     system_prompt: str
     model: str
-    settings: Dict[str, Any]
+    username: Optional[str]
+    provider_type: str  # "openai" or "anthropic"
+    voice_settings: Optional[Dict[str, Any]]  # For elevenlabs settings
+    settings: Dict[str, Any]  # For any other provider-specific settings
+
+    @classmethod
+    def from_yaml(cls, config: Dict[str, Any]) -> "AssistantConfig":
+        # Determine provider type
+        provider_type = "openai" if "openai" in config else "anthropic"
+        provider_config = config.get(provider_type, {})
+
+        return cls(
+            name=config.get("va_name", "Unnamed Assistant"),
+            description=f"Assistant with personality: {config.get('va_name')}",
+            system_prompt=provider_config.get("system_prompt", ""),
+            model=provider_config.get("model", ""),
+            username=config.get("user", {}).get("username"),
+            provider_type=provider_type,
+            voice_settings=config.get("elevenlabs"),
+            settings=provider_config.get("settings", {}),
+        )
 
 
 @dataclass
@@ -29,6 +49,7 @@ class LLMProviderConfig:
 @dataclass
 class LLMConfig:
     providers: Dict[str, LLMProviderConfig]
+    default_system_prompt: str = "You are a conversational AI, speak in short sentences and use natural language."
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "LLMConfig":
@@ -36,7 +57,25 @@ class LLMConfig:
             name: LLMProviderConfig(**provider_data)
             for name, provider_data in data.get("providers", {}).items()
         }
-        return cls(providers=providers)
+        return cls(
+            providers=providers,
+            default_system_prompt=data.get(
+                "default_system_prompt",
+                "You are a conversational AI, speak in short sentences and use natural language.",
+            ),
+        )
+
+    def save(self) -> Dict[str, Any]:
+        return {
+            "default_system_prompt": self.default_system_prompt,
+            "providers": {
+                name: {
+                    "default_model": provider.default_model,
+                    "models": provider.models,
+                }
+                for name, provider in self.providers.items()
+            },
+        }
 
 
 @dataclass
@@ -144,21 +183,68 @@ class AppConfig:
     def _load_assistant_configs() -> List[AssistantConfig]:
         """Load all va-*.yaml files from root directory"""
         assistants = []
+
+        # Get available providers and models from llm config
+        with open("app-settings.yaml") as f:
+            app_config = yaml.safe_load(f)
+            available_providers = app_config.get("llm", {}).get("providers", {})
+
         for config_file in glob.glob("va-*.yaml"):
             try:
+                print(f"\n=== Loading assistant config from {config_file} ===")
                 with open(config_file, "r") as f:
                     config = yaml.safe_load(f)
+                    print(f">>> Raw config: {config}")
+
+                    # Determine provider and validate
+                    provider_type = "openai" if "openai" in config else "anthropic"
+                    if provider_type not in available_providers:
+                        print(
+                            f"!!! Provider {provider_type} not supported, trying fallback..."
+                        )
+                        # Try alternate provider
+                        provider_type = next(iter(available_providers.keys()))
+                        print(f">>> Using fallback provider: {provider_type}")
+
+                    provider_config = available_providers[provider_type]
+
+                    # Get model and validate with fallbacks
+                    model = config.get(provider_type, {}).get("model")
+                    if not model or model not in provider_config["models"]:
+                        print(
+                            f"!!! Model {model} not available, using provider default"
+                        )
+                        model = provider_config["default_model"]
+                        print(f">>> Using default model: {model}")
+
+                    # Create assistant config
                     assistant = AssistantConfig(
-                        name=config.get("name", "Unnamed Assistant"),
-                        description=config.get("description", ""),
-                        system_prompt=config.get("system_prompt", ""),
-                        model=config.get("model", "claude-3-opus-20240229"),
+                        name=config.get("va_name", "Unnamed Assistant"),
+                        description=f"Assistant loaded from {config_file}",
+                        system_prompt=config.get(provider_type, {}).get(
+                            "system_prompt", ""
+                        ),
+                        model=model,
+                        username=config.get("user", {}).get("username"),
+                        provider_type=provider_type,
+                        voice_settings=config.get("elevenlabs"),
                         settings=config.get("settings", {}),
                     )
+
+                    print(f">>> Loaded assistant: {assistant.name}")
+                    print(f">>> Using provider: {provider_type}")
+                    print(f">>> Using model: {model}")
+                    print(f">>> System prompt: {assistant.system_prompt[:100]}...")
+
                     assistants.append(assistant)
-                    print(f"Loaded assistant config from {config_file}")
+
             except Exception as e:
-                print(f"Error loading assistant config {config_file}: {e}")
+                print(f"!!! Error loading assistant config {config_file}: {e}")
+                import traceback
+
+                traceback.print_exc()
+
+        print(f"\n>>> Loaded {len(assistants)} total assistants")
         return assistants
 
     @staticmethod
@@ -216,15 +302,7 @@ class AppConfig:
                 "config": self.clipboard.config,
             },
             "ui": self.ui,
-            "llm": {
-                "providers": {
-                    name: {
-                        "default_model": provider.default_model,
-                        "models": provider.models,
-                    }
-                    for name, provider in self.llm.providers.items()
-                },
-            },
+            "llm": self.llm.save(),  # Use the new save method
         }
 
         os.makedirs(os.path.dirname(config_path), exist_ok=True)

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 class LLMProvider(ABC):
@@ -19,8 +19,10 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    def generate_response(self, message: str) -> str:
-        """Generate a response to the given message"""
+    def generate_response(
+        self, message: str, system_prompt: Optional[str] = None
+    ) -> str:
+        """Generate a response to the given message, optionally using a system prompt"""
         pass
 
     @abstractmethod

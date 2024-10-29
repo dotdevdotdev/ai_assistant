@@ -1,7 +1,7 @@
 from core.interfaces.llm import LLMProvider
 from anthropic import Anthropic
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 
 class AnthropicProvider(LLMProvider):
@@ -21,11 +21,17 @@ class AnthropicProvider(LLMProvider):
             raise ValueError(f"Unknown model: {model_name}")
         self._current_model = model_name
 
-    def generate_response(self, message: str) -> str:
+    def generate_response(
+        self, message: str, system_prompt: Optional[str] = None
+    ) -> str:
         try:
+            # For Anthropic, system prompt is a top-level parameter
             response = self._client.messages.create(
                 model=self._current_model,
                 max_tokens=1024,
+                system=system_prompt
+                if system_prompt
+                else None,  # Pass as top-level param
                 messages=[{"role": "user", "content": message}],
             )
             return response.content[0].text

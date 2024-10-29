@@ -157,9 +157,9 @@ class Application:
             self._setup_providers()
             self._setup_style()
 
-            # Create and show main window with reference to application
+            # Create and show main window
             self.main_window = ChatWindow()
-            self.main_window.app = self  # Give window access to application instance
+            self.main_window.set_app(self)  # Set app before UI setup
             self.main_window.show()
 
             # Start the event loop

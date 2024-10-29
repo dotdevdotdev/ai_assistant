@@ -1,5 +1,5 @@
 from core.interfaces.llm import LLMProvider
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 class CompositeLLMProvider(LLMProvider):
@@ -25,8 +25,11 @@ class CompositeLLMProvider(LLMProvider):
         self._current_provider.set_model(model)
         self._current_model = model_name
 
-    def generate_response(self, message: str) -> str:
-        return self._current_provider.generate_response(message)
+    def generate_response(
+        self, message: str, system_prompt: Optional[str] = None
+    ) -> str:
+        """Generate response using current provider with optional system prompt"""
+        return self._current_provider.generate_response(message, system_prompt)
 
     def get_providers(self) -> Dict[str, LLMProvider]:
         return self._providers
