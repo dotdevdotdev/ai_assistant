@@ -15,6 +15,7 @@ import os
 import io
 import asyncio
 from qasync import asyncSlot
+import traceback
 
 
 # TODO: TTS Integration Status
@@ -150,6 +151,45 @@ class TTSControls(QWidget):
 
         except Exception as e:
             print(f"!!! Error generating TTS: {e}")
-            import traceback
-
             print(traceback.format_exc())
+
+    async def synthesize_text(self, text: str):
+        """Convert text to speech using the selected TTS provider"""
+        try:
+            print(">>> Starting TTS synthesis")
+            tts_provider = ProviderRegistry.get_instance().get_provider(
+                TextToSpeechProvider
+            )
+
+            if not tts_provider:
+                print("!!! No TTS provider found")
+                return
+
+            # Get currently selected reference audio
+            ref_audio = self.ref_combo.currentData()
+            if not ref_audio:
+                print("!!! No reference audio selected, using first available")
+                # Try to use first available reference audio
+                if self.ref_combo.count() > 0:
+                    ref_audio = self.ref_combo.itemData(0)
+                else:
+                    print("!!! No reference audio files available")
+                    return
+
+            print(f">>> Using reference audio: {ref_audio}")
+
+            # Generate audio data with reference audio
+            audio_data = await tts_provider.synthesize(text, ref_audio)
+
+            # Emit the generated audio data
+            print(">>> TTS synthesis complete, emitting audio data")
+            self.tts_generated.emit(audio_data)
+
+        except Exception as e:
+            print(f"!!! Error during TTS synthesis: {e}")
+            print(traceback.format_exc())
+
+    def _on_tts_clicked(self):
+        """Handle TTS button click - can be used for manual TTS triggering"""
+        # Implementation for manual TTS button if needed
+        pass

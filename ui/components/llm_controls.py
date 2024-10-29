@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QLabel,
     QApplication,
+    QTextEdit,
 )
 from PyQt6.QtCore import pyqtSignal, QTimer
 from core.interfaces.llm import LLMProvider
@@ -33,6 +34,12 @@ class LLMControls(QWidget):
         model_layout.addWidget(QLabel("LLM Model:"))
         model_layout.addWidget(self.model_combo, stretch=1)
         layout.addLayout(model_layout)
+
+        # System prompt
+        self.system_prompt_edit = QTextEdit()
+        self.system_prompt_edit.setPlaceholderText("Enter system prompt (optional)...")
+        self.system_prompt_edit.setMaximumHeight(100)
+        layout.addWidget(self.system_prompt_edit)
 
     def _initialize_models(self):
         """Initialize models after window is fully set up"""
@@ -107,37 +114,64 @@ class LLMControls(QWidget):
             traceback.print_exc()
 
     def send_message(self, message: str):
-        """Send message to current model and emit response"""
+        """Send message to LLM and emit response"""
         try:
-            print(f"\n=== Sending message to model ===")
-            provider = ProviderRegistry.get_instance().get_provider(LLMProvider)
+            # Get current provider and settings
+            provider = self._get_current_provider()
+            if not provider:
+                error_msg = "No LLM provider available"
+                print(f"!!! {error_msg}")
+                self.response_ready.emit(error_msg)
+                return
 
-            # Get system prompt and assistant info if selected
-            window = self.window()
-            system_prompt = None
-            assistant_name = None
-            if hasattr(window, "assistant_controls"):
-                current_assistant = window.assistant_controls.get_current_assistant()
-                if current_assistant:
-                    system_prompt = current_assistant.system_prompt
-                    assistant_name = current_assistant.name
-                    print(f">>> Using assistant: {assistant_name}")
-                    print(f">>> Using system prompt: {system_prompt[:100]}...")
+            system_prompt = self.system_prompt_edit.toPlainText().strip()
+
+            # Validate message
+            if not message.strip():
+                error_msg = "Message cannot be empty"
+                print(f"!!! {error_msg}")
+                self.response_ready.emit(error_msg)
+                return
+
+            try:
+                response = provider.generate_response(
+                    message, system_prompt=system_prompt
+                )
+                if response and response.strip():
+                    self.response_ready.emit(response)
                 else:
-                    system_prompt = self._app.config.llm.default_system_prompt
-                    print(f">>> Using default system prompt: {system_prompt}")
-
-            response = provider.generate_response(message, system_prompt=system_prompt)
-
-            # Format response with assistant name if available
-            formatted_response = (
-                f"{assistant_name}: {response}" if assistant_name else response
-            )
-            self.response_ready.emit(formatted_response)
+                    error_msg = "Received empty response from LLM"
+                    print(f"!!! {error_msg}")
+                    self.response_ready.emit(error_msg)
+            except Exception as e:
+                error_msg = f"Error generating response: {str(e)}"
+                print(f"!!! {error_msg}")
+                self.response_ready.emit(error_msg)
 
         except Exception as e:
-            print(f"!!! Error generating response: {str(e)}")
-            self.response_ready.emit(f"Error: {str(e)}")
-            import traceback
+            error_msg = f"Error in message handling: {str(e)}"
+            print(f"!!! {error_msg}")
+            self.response_ready.emit(error_msg)
 
-            traceback.print_exc()
+    def _get_current_provider(self) -> LLMProvider:
+        """Get the currently selected LLM provider"""
+        try:
+            # Get the current model selection
+            display_name = self.model_combo.currentText()
+            if not display_name:
+                print("!!! No model selected")
+                return None
+
+            # Split into provider and model names
+            provider_name, _ = display_name.split(": ", 1)
+
+            # Get provider from application
+            if provider_name in self._app._llm_providers:
+                return self._app._llm_providers[provider_name]
+            else:
+                print(f"!!! Provider {provider_name} not found")
+                return None
+
+        except Exception as e:
+            print(f"!!! Error getting current provider: {e}")
+            return None

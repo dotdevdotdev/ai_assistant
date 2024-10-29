@@ -84,6 +84,17 @@ class ChatWindow(QMainWindow):
         self.tts_controls.tts_generated.connect(self._on_tts_generated)
         top_layout.addWidget(self.tts_controls)
 
+        # Add Full Pipeline button to top section
+        pipeline_layout = QHBoxLayout()
+        self.pipeline_button = QPushButton("🎙️ Record → Text → LLM → Speech")
+        self.pipeline_button.setToolTip(
+            "Record audio, convert to text, get LLM response, and play as speech"
+        )
+        self.pipeline_button.setCheckable(True)
+        self.pipeline_button.clicked.connect(self._on_pipeline_clicked)
+        pipeline_layout.addWidget(self.pipeline_button)
+        top_layout.addLayout(pipeline_layout)
+
         # Message view
         self.message_view = MessageView()
 
@@ -288,8 +299,21 @@ class ChatWindow(QMainWindow):
 
     def _on_transcription_ready(self, text: str):
         """Handle transcribed text"""
+        # Update input area
         self.input_area.text_edit.setPlainText(text)
         self.input_area.send_button.setEnabled(True)
+
+        # Only continue pipeline if it was triggered by pipeline button
+        if self.pipeline_button.isChecked():
+            print(">>> Pipeline: Sending transcribed text to LLM")
+            # Add user message to view
+            username = self._get_username()
+            user_message = Message(username, text)
+            self.message_view.add_message(user_message)
+
+            # Send to LLM
+            self.llm_controls.response_ready.connect(self._on_pipeline_llm_response)
+            self.llm_controls.send_message(text)
 
     def _on_assistant_changed(self, model: str, system_prompt: str):
         """Handle assistant selection"""
@@ -300,6 +324,114 @@ class ChatWindow(QMainWindow):
                     full_model = f"{provider_name}: {model}"
                     self.llm_controls.model_combo.setCurrentText(full_model)
                     break
+
+    def _on_pipeline_clicked(self, checked: bool):
+        """Handle full pipeline button click"""
+        if checked:
+            # Start recording - use existing audio controls
+            print("\n=== Starting Full Pipeline ===")
+            print(">>> Step 1: Starting audio recording")
+            self.pipeline_button.setText("🔴 Stop Pipeline")
+
+            # Start recording
+            self.audio_controls.record_button.setChecked(True)
+        else:
+            # Stop recording and process
+            print("\n=== Processing Pipeline ===")
+            print(">>> Step 2: Stopping audio recording")
+            self.pipeline_button.setText("🎙️ Record → Text → LLM → Speech")
+
+            # Stop recording
+            self.audio_controls.record_button.setChecked(False)
+
+    def _on_pipeline_recording_stopped(self):
+        """Handle recording stop in pipeline"""
+        print(">>> Step 3: Recording stopped, waiting for transcription")
+        # Don't disconnect yet - wait for transcription
+
+        # Verify the speech provider is ready
+        speech_provider = ProviderRegistry.get_instance().get_provider(
+            SpeechToTextProvider
+        )
+        if not speech_provider:
+            print("!!! Speech provider not found")
+            self.pipeline_button.setChecked(False)
+            return
+
+    def _on_pipeline_transcription(self, text: str):
+        """Handle transcription in pipeline"""
+        print(f"\n>>> Step 4: Got transcription: {text}")
+
+        # Disconnect transcription handler
+        self.audio_controls.transcription_ready.disconnect(
+            self._on_pipeline_transcription
+        )
+
+        if not text.strip():
+            print("!!! Empty transcription received")
+            self.pipeline_button.setChecked(False)
+            return
+
+        # Add user message to view
+        username = self._get_username()
+        user_message = Message(username, text)
+        self.message_view.add_message(user_message)
+
+        # Send to LLM
+        print(">>> Step 5: Sending to LLM for response")
+        self.llm_controls.response_ready.connect(self._on_pipeline_llm_response)
+        self.llm_controls.send_message(text)
+
+    def _on_pipeline_llm_response(self, response: str):
+        """Handle LLM response in pipeline"""
+        print(f"\n>>> Step 6: Got LLM response")
+
+        # Disconnect LLM handler
+        self.llm_controls.response_ready.disconnect(self._on_pipeline_llm_response)
+
+        # Check if response is an error message
+        if response.startswith("Error:") or "error" in response.lower():
+            print("!!! LLM returned an error, stopping pipeline")
+            self.pipeline_button.setChecked(False)
+            return
+
+        # Truncate long responses for logging
+        log_response = response[:100] + "..." if len(response) > 100 else response
+        print(f">>> Response content: {log_response}")
+
+        # Send to TTS only if still in pipeline and response is valid
+        if self.pipeline_button.isChecked():
+            print(">>> Step 7: Sending to TTS for speech synthesis")
+            self.tts_controls.tts_generated.connect(self._on_pipeline_tts_complete)
+
+            try:
+                # Create and run the coroutine using the event loop
+                loop = asyncio.get_event_loop()
+                loop.create_task(self.tts_controls.synthesize_text(response))
+            except Exception as e:
+                print(f"!!! Error starting TTS synthesis: {e}")
+                self.pipeline_button.setChecked(False)
+                self.tts_controls.tts_generated.disconnect(
+                    self._on_pipeline_tts_complete
+                )
+
+    def _on_pipeline_tts_complete(self, audio_data: bytes):
+        """Handle TTS completion in pipeline"""
+        try:
+            if not audio_data:
+                print("!!! No audio data received from TTS")
+                self.pipeline_button.setChecked(False)
+                return
+
+            print(">>> Step 8: Pipeline complete - playing audio response")
+            self.pipeline_button.setChecked(False)
+
+            # Disconnect TTS handler
+            self.tts_controls.tts_generated.disconnect(self._on_pipeline_tts_complete)
+
+        except Exception as e:
+            print(f"!!! Error in TTS completion handler: {e}")
+            self.pipeline_button.setChecked(False)
 
 
 # TODO: Audio Integration Status

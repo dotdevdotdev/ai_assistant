@@ -256,14 +256,6 @@ class AudioControls(QWidget):
     def _on_record_clicked(self, checked: bool):
         if checked:
             self.record_button.setText("Stop Recording")
-        else:
-            self.record_button.setText("Start Recording (with dictation)")
-
-        # Disable buttons during recording and processing
-        self.play_button.setEnabled(False)
-        self.test_sound_button.setEnabled(False)
-
-        if checked:
             print("\n=== Starting audio recording ===")
             try:
                 device_id = self.input_combo.currentData()
@@ -281,6 +273,7 @@ class AudioControls(QWidget):
 
                 self._provider.start_stream(config)
                 self._level_timer.start()
+                self._recording = True
                 self.recording_started.emit()
 
             except Exception as e:
@@ -295,6 +288,7 @@ class AudioControls(QWidget):
             print("\n=== Requesting recording stop ===")
             self._level_timer.stop()
             self.level_indicator.setValue(0)
+            self._recording = False
 
             # Disable all controls during processing
             self.record_button.setEnabled(False)
@@ -303,31 +297,45 @@ class AudioControls(QWidget):
 
             try:
                 # Stop the stream and wait for processing
+                print(">>> Stopping audio stream")
                 self._provider.stop_stream()
 
                 # Wait for processing to complete
+                print(">>> Waiting for processing to complete")
                 while self._provider.is_processing():
                     QApplication.processEvents()  # Keep UI responsive
 
+                print(">>> Processing complete, saving recording")
                 self._save_recording()  # Save the recording
 
                 # Get transcription if we have audio data
                 speech_provider = ProviderRegistry.get_instance().get_provider(
                     SpeechToTextProvider
                 )
-                if speech_provider:
+                if speech_provider and self._provider._recorded_frames:
+                    print(
+                        f">>> Starting transcription with {len(self._provider._recorded_frames)} frames"
+                    )
                     text = speech_provider.transcribe(self._provider._recorded_frames)
                     print(f">>> Transcribed Text: {text}")
                     self.transcription_ready.emit(text)
+                else:
+                    print("!!! No audio data or speech provider available")
+                    if not speech_provider:
+                        print("!!! Speech provider not found")
+                    if not self._provider._recorded_frames:
+                        print("!!! No recorded frames available")
 
                 self.recording_stopped.emit()
             except Exception as e:
                 print(f"Error during recording stop/transcription: {e}")
+                print(traceback.format_exc())
             finally:
                 # Re-enable controls
                 self.record_button.setEnabled(True)
                 self.play_button.setEnabled(True)
                 self.test_sound_button.setEnabled(True)
+                self.record_button.setText("Start Recording")
 
     def _on_play_clicked(self):
         print("\n=== Playing recorded audio ===")

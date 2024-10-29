@@ -124,38 +124,49 @@ class PyAudioProvider(AudioInputProvider, AudioOutputProvider):
             self._is_processing = True
             print(">>> Processing remaining audio data...")
 
-            if self._stream:
-                # Keep reading remaining data in the stream buffer
-                while (
-                    self._stream.is_active() and self._stream.get_read_available() > 0
-                ):
-                    try:
-                        data = self._stream.read(
-                            self._config["chunk"], exception_on_overflow=False
-                        )
-                        if data:
-                            # Process any remaining audio data
-                            audio_data = np.frombuffer(data, dtype=np.int16)
-                            audio_data = np.clip(audio_data * 5, -32768, 32767).astype(
-                                np.int16
+            # Check if stream exists and is active before trying to stop it
+            if self._stream and not self._stream._closed:  # Add check for closed state
+                try:
+                    # Keep reading remaining data in the stream buffer
+                    while (
+                        self._stream.is_active()
+                        and self._stream.get_read_available() > 0
+                    ):
+                        try:
+                            data = self._stream.read(
+                                self._config["chunk"], exception_on_overflow=False
                             )
-                            self._recorded_frames.append(audio_data.tobytes())
-                        else:
+                            if data:
+                                # Process any remaining audio data
+                                audio_data = np.frombuffer(data, dtype=np.int16)
+                                audio_data = np.clip(
+                                    audio_data * 5, -32768, 32767
+                                ).astype(np.int16)
+                                self._recorded_frames.append(audio_data.tobytes())
+                            else:
+                                break
+                        except Exception as e:
+                            print(f"!!! Warning: Error reading final chunks: {e}")
                             break
-                    except Exception as e:
-                        print(f"!!! Warning: Error reading final chunks: {e}")
-                        break
 
-            # Now we can safely stop and close the stream
-            print(">>> Stopping stream...")
-            self._stream.stop_stream()
-            self._stream.close()
+                    # Now we can safely stop and close the stream
+                    print(">>> Stopping stream...")
+                    if self._stream.is_active():
+                        self._stream.stop_stream()
+                    self._stream.close()
 
-            # Calculate final recording length
-            total_samples = len(self._recorded_frames) * self._config["chunk"]
-            recording_length = total_samples / self._config["rate"]
-            print(f">>> Final recording length: {recording_length:.2f}s")
-            print(f">>> Total frames recorded: {len(self._recorded_frames)}")
+                except Exception as e:
+                    print(f"!!! Warning: Error during stream shutdown: {e}")
+                    # Continue with cleanup even if there's an error
+
+                # Calculate final recording length if we have config and frames
+                if self._config and self._recorded_frames:
+                    total_samples = len(self._recorded_frames) * self._config["chunk"]
+                    recording_length = total_samples / self._config["rate"]
+                    print(f">>> Final recording length: {recording_length:.2f}s")
+                    print(f">>> Total frames recorded: {len(self._recorded_frames)}")
+            else:
+                print(">>> Stream already closed or not initialized")
 
         except Exception as e:
             print(f"!!! Error during stream shutdown: {e}")
