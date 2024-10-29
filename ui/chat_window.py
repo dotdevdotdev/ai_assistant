@@ -28,6 +28,7 @@ from typing import Optional, AsyncIterator
 from PyQt6.QtWidgets import QApplication
 import traceback
 import io
+from .components.llm_controls import LLMControls
 
 
 class ChatWindow(QMainWindow):
@@ -50,18 +51,24 @@ class ChatWindow(QMainWindow):
         # Create splitter for resizable sections
         splitter = QSplitter(Qt.Orientation.Vertical)
 
-        # Top section with assistant selector and audio controls
+        # Top section with assistant selector and controls
         top_widget = QWidget()
         top_layout = QVBoxLayout(top_widget)
 
-        self.assistant_selector = AssistantSelector()
-        self.assistant_selector.model_changed.connect(self._on_model_changed)
+        # Add LLM controls first
+        self.llm_controls = LLMControls()
+        top_layout.addWidget(self.llm_controls)
 
+        # TODO: Remove assistant selector once LLM controls fully handle model selection
+        # self.assistant_selector = AssistantSelector()
+        # self.assistant_selector.model_changed.connect(self._on_model_changed)
+        # top_layout.addWidget(self.assistant_selector)
+
+        # Then audio controls
         self.audio_controls = AudioControls()
         self.audio_controls.recording_started.connect(self._on_recording_started)
         self.audio_controls.recording_stopped.connect(self._on_recording_stopped)
         self.audio_controls.transcription_ready.connect(self._on_transcription_ready)
-
         top_layout.addWidget(self.audio_controls)
 
         # Add TTS controls below audio controls
@@ -74,9 +81,16 @@ class ChatWindow(QMainWindow):
 
         # Input area
         self.input_area = InputArea()
-        self.input_area.message_submitted.connect(self._on_message_submitted)
+        self.input_area.message_submitted.connect(self.llm_controls.send_message)
         self.input_area.recording_toggled.connect(
             self.audio_controls.record_button.setChecked
+        )
+
+        # Connect LLM response to message view
+        self.llm_controls.response_ready.connect(
+            lambda response: self.message_view.add_message(
+                Message("assistant", response)
+            )
         )
 
         # Add widgets to splitter

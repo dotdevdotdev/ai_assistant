@@ -21,6 +21,25 @@ class ModuleConfig:
 
 
 @dataclass
+class LLMProviderConfig:
+    default_model: str
+    models: List[str]
+
+
+@dataclass
+class LLMConfig:
+    providers: Dict[str, LLMProviderConfig]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "LLMConfig":
+        providers = {
+            name: LLMProviderConfig(**provider_data)
+            for name, provider_data in data.get("providers", {}).items()
+        }
+        return cls(providers=providers)
+
+
+@dataclass
 class AppConfig:
     audio: ModuleConfig
     speech: ModuleConfig
@@ -28,6 +47,7 @@ class AppConfig:
     clipboard: ModuleConfig
     ui: Dict[str, Any]
     assistants: List[AssistantConfig]
+    llm: LLMConfig
 
     @classmethod
     def load(cls, config_path: str) -> "AppConfig":
@@ -69,6 +89,10 @@ class AppConfig:
                         )
                     print(f"Audio config with devices: {audio_config}")
 
+                    # Convert LLM section to proper config object
+                    llm_data = config_dict.get("llm", {})
+                    llm_config = LLMConfig.from_dict(llm_data)
+
                     config = cls(
                         audio=ModuleConfig(
                             provider_type=audio_dict.get("provider", "pyaudio"),
@@ -92,7 +116,9 @@ class AppConfig:
                         ),
                         ui=config_dict.get("ui", {}),
                         assistants=assistants,
+                        llm=llm_config,
                     )
+
                     print(
                         f"Created config object with speech provider: {config.speech.provider_type}"
                     )
@@ -167,6 +193,7 @@ class AppConfig:
             clipboard=ModuleConfig(provider_type="qt", config={}),
             ui={"theme": "dark", "window_size": [800, 600]},
             assistants=[],  # Will be populated from va-*.yaml files
+            llm=LLMConfig(providers={}),
         )
 
     def save(self, config_path: str) -> None:
@@ -189,6 +216,15 @@ class AppConfig:
                 "config": self.clipboard.config,
             },
             "ui": self.ui,
+            "llm": {
+                "providers": {
+                    name: {
+                        "default_model": provider.default_model,
+                        "models": provider.models,
+                    }
+                    for name, provider in self.llm.providers.items()
+                },
+            },
         }
 
         os.makedirs(os.path.dirname(config_path), exist_ok=True)

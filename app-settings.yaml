@@ -27,7 +27,7 @@ speech:
       encoding: "linear16"
     f5tts:
       model: "F5-TTS"
-      reference_audio_dir: "reference_audio" # Default directory for reference audio files
+      reference_audio_dir: "reference_audio"
 ui:
   theme:
     mode: dark
@@ -38,15 +38,16 @@ ui:
   window_size:
     - 800
     - 600
-# TODO: Configuration Status
-# - Basic config structure in place
-# - Need to add:
-#   1. TTS-specific settings (model paths, voice profiles)
-#   2. Audio processing settings (normalization, resampling)
-#   3. Default voice reference settings
-#   4. Error handling preferences
-# - Consider:
-#   1. Separate config for each TTS provider
-#   2. Voice profile management
-#   3. Audio quality settings
-#   4. Resource paths configuration
+llm:
+  providers:
+    anthropic:
+      default_model: "claude-3-sonnet"
+      models:
+        - "claude-3-opus"
+        - "claude-3-sonnet"
+        - "claude-3-haiku"
+    openai:
+      default_model: "gpt-4"
+      models:
+        - "gpt-4"
+        - "gpt-3.5-turbo"

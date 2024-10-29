@@ -17,10 +17,14 @@ from core.interfaces.speech import SpeechToTextProvider, TextToSpeechProvider
 from core.interfaces.assistant import AssistantProvider
 from core.interfaces.clipboard import ClipboardProvider
 from qasync import QEventLoop
+from modules.llm.anthropic_provider import AnthropicProvider
+from core.interfaces.llm import LLMProvider
+from modules.llm.openai_provider import OpenAIProvider
+from modules.llm.composite_provider import CompositeLLMProvider
 
 
 class Application:
-    CONFIG_PATH = "app-settings.yaml"
+    CONFIG_PATH = os.path.join(os.path.dirname(__file__), "app-settings.yaml")
 
     def __init__(self):
         self.app = QApplication(sys.argv)
@@ -34,6 +38,32 @@ class Application:
         print(f"Loading config from: {os.path.abspath(self.CONFIG_PATH)}")
         self.config = AppConfig.load(self.CONFIG_PATH)
         self._setup_event_handling()
+
+        # Register LLM providers
+        llm_config = self.config.llm
+        print("\n=== Setting up LLM Providers ===")
+
+        # Create all configured providers
+        providers = {}
+        if "anthropic" in llm_config.providers:
+            print(">>> Registering Anthropic provider")
+            providers["anthropic"] = AnthropicProvider(
+                llm_config.providers["anthropic"]
+            )
+        if "openai" in llm_config.providers:
+            print(">>> Registering OpenAI provider")
+            providers["openai"] = OpenAIProvider(llm_config.providers["openai"])
+
+        if not providers:
+            raise ValueError("No valid LLM providers configured")
+
+        # Register the composite provider
+        composite_provider = CompositeLLMProvider(providers)
+        self.registry.register_provider(LLMProvider, composite_provider)
+
+        # Store all providers for potential switching
+        self._llm_providers = dict(providers)
+        print(f">>> Available providers: {list(self._llm_providers.keys())}")
 
     def _setup_event_handling(self):
         self.event_bus.subscribe(EventType.ERROR, self._handle_error)
@@ -126,8 +156,9 @@ class Application:
             self._setup_providers()
             self._setup_style()
 
-            # Create and show main window
+            # Create and show main window with reference to application
             self.main_window = ChatWindow()
+            self.main_window.app = self  # Give window access to application instance
             self.main_window.show()
 
             # Start the event loop

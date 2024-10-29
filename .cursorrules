@@ -588,3 +588,490 @@ audio_resampled = signal.resample(audio_float, new_samples)
    - Verify resampling quality
    - Monitor transcription confidence
    - Log failed transcription attempts
+
+## Provider Pattern Rules
+
+MUST Follow these provider implementation steps:
+
+1. Define interface in core/interfaces/
+2. Create provider class implementing interface
+3. Add provider type to relevant enum
+4. Register provider in registry
+5. Add configuration section in app-settings.yaml
+
+Example provider registration:
+
+```python
+@dataclass
+class ProviderConfig:
+    name: str
+    settings: Dict[str, Any]
+
+class ExampleProvider(ExampleInterface):
+    def __init__(self, config: ProviderConfig):
+        self._config = config
+        self._initialize()
+```
+
+## Provider Configuration Rules
+
+MUST Structure provider configs consistently:
+
+```yaml
+module_name:
+  provider: selected_provider_name
+  providers:
+    selected_provider_name:
+      setting1: value1
+      setting2: value2
+    alternate_provider_name:
+      setting1: value1
+```
+
+## Provider Registration Rules
+
+MUST Follow registration pattern:
+
+```python
+# In application.py
+provider_config = self.config.get_provider_config("module_name")
+provider = ProviderClass(provider_config)
+self.registry.register_provider(ProviderInterface, provider)
+```
+
+## Provider Testing Rules
+
+MUST Test provider swapping:
+
+1. Test configuration loading
+2. Verify clean provider shutdown
+3. Test provider initialization
+4. Verify resource cleanup
+5. Test provider hot-swapping
+
+## Provider Interface Rules
+
+MUST Include in all provider interfaces:
+
+- Initialization method
+- Cleanup method
+- Status/health check
+- Resource management
+- Error handling
+
+## Provider Lifecycle Rules
+
+MUST Handle provider lifecycle:
+
+1. Load configuration
+2. Initialize resources
+3. Connect signals/slots
+4. Handle errors
+5. Clean up resources
+6. Log state changes
+
+## Configuration Access Patterns
+
+MUST Follow these configuration access rules:
+
+1. Direct Attribute Access:
+
+- Use direct attribute access for AppConfig objects
+- NEVER use dictionary-style .get() on config objects
+- Access nested configs through dot notation
+
+Example correct config access:
+
+```python
+# Correct - direct attribute access
+llm_config = self.config.llm
+provider_name = llm_config.provider
+provider_config = llm_config.providers[provider_name]
+
+# Correct - nested config access
+audio_config = self.config.audio.config.copy()
+speech_provider_type = self.config.speech.provider_type
+```
+
+2. Dictionary Access:
+
+- Use .get() ONLY for actual dictionaries
+- Use dict access for provider-specific config sections
+- Include default values when using .get()
+
+Example dictionary access:
+
+```python
+# Correct - dictionary get() with default
+tts_config = self.config.speech.config.get("f5tts", {})
+model_name = tts_config.get("model", "default_model")
+
+# Correct - provider config access
+provider_config = llm_config.providers[provider_name]
+```
+
+3. Common Pitfalls:
+
+- NEVER use .get() on AppConfig objects
+- NEVER mix dictionary and attribute access styles
+- NEVER assume config structure without validation
+- NEVER access config values without proper error handling
+- NEVER use string literals for config keys
+
+4. Config Validation:
+
+- Validate config presence before access
+- Check for required config sections
+- Provide meaningful error messages
+- Log config access issues
+- Handle missing config gracefully
+
+## Provider Implementation Rules
+
+MUST Follow these provider access patterns:
+
+1. Config Access in Providers:
+
+- Use direct attribute access for dataclass configs
+- NEVER use dictionary-style access on provider configs
+- Access config values through properties
+
+Example correct provider implementation:
+
+```python
+class ExampleProvider(ProviderInterface):
+    def __init__(self, config):
+        self._config = config  # Config is a dataclass
+        self._current_model = self.get_default_model()
+
+    def get_default_model(self):
+        return self._config.default_model  # Direct attribute access
+
+    def get_available_models(self):
+        return self._config.models  # Direct attribute access
+```
+
+2. Provider Initialization:
+
+- Initialize client/API in constructor
+- Load environment variables properly
+- Set default model/settings from config
+- Validate config before use
+
+Example proper initialization:
+
+```python
+def __init__(self, config):
+    self._config = config
+    self._client = APIClient(api_key=os.environ["API_KEY"])
+    self._current_model = self.get_default_model()
+    self._validate_config()
+```
+
+3. Error Handling in Providers:
+
+- Catch and log API-specific errors
+- Provide meaningful error messages
+- Include error context in exceptions
+- Clean up resources on error
+- Log all API interactions
+
+Example error handling:
+
+```python
+def generate_response(self, message: str) -> str:
+    try:
+        response = self._client.create(
+            model=self._current_model,
+            messages=[{"role": "user", "content": message}]
+        )
+        return response.content
+    except Exception as e:
+        print(f"!!! Error in API call: {str(e)}")
+        raise
+```
+
+4. Provider Validation:
+
+- Validate model names before use
+- Check API credentials early
+- Verify config completeness
+- Test API connectivity
+- Log validation results
+
+Example validation:
+
+```python
+def set_model(self, model_name: str):
+    if model_name not in self.get_available_models():
+        raise ValueError(f"Unknown model: {model_name}")
+    self._current_model = model_name
+```
+
+5. Common Provider Pitfalls:
+
+- NEVER access config as dictionary when it's a dataclass
+- NEVER ignore API rate limits
+- NEVER skip error logging
+- NEVER leave resources uncleaned
+- NEVER assume API availability
+
+## Rule Maintenance Guidelines
+
+MUST Follow these documentation update patterns:
+
+1. Knowledge Capture Triggers:
+
+- Add rules when solutions prove successful
+- Document patterns after bug fixes
+- Capture learnings from code reviews
+- Update when best practices emerge
+- Add rules after "this worked great" moments
+
+2. Rule Addition Format:
+
+- Match existing style and voice
+- Use clear MUST/NEVER directives
+- Include concrete examples
+- Group with related rules
+- Follow established sections
+
+3. Documentation Timing:
+
+- Add rules immediately after success
+- Document while context is fresh
+- Update related sections together
+- Include root cause of fixed issues
+- Reference relevant code patterns
+
+Example rule addition:
+
+```python
+## [Relevant Section]
+
+MUST Follow these [topic] rules:
+
+1. [New Pattern]:
+- Key requirement
+- Important consideration
+- Critical step
+
+Example implementation:
+def example_code():
+    # Show the pattern
+    pass
+```
+
+4. Common Update Triggers:
+
+- Bug fixes reveal patterns
+- Successful refactoring
+- New provider implementations
+- Configuration improvements
+- Error handling refinements
+
+5. Rule Quality Standards:
+
+- MUST be actionable
+- MUST include examples
+- MUST explain rationale
+- MUST reference patterns
+- NEVER be ambiguous
+
+## Code Cleanup Patterns
+
+MUST Follow these cleanup rules:
+
+1. Remove Unused Components:
+
+- Delete unused files completely
+- Remove redundant window/widget classes
+- Clean up duplicate functionality
+- Remove commented-out code
+- Document removal in commit messages
+
+Example cleanup trigger:
+
+```python
+# BAD: Having multiple window classes with similar functionality
+class MainWindow(QMainWindow):  # Unused but similar to ChatWindow
+    def setup_ui(self):
+        pass
+
+class ChatWindow(QMainWindow):  # The one actually being used
+    def setup_ui(self):
+        pass
+```
+
+2. Component Consolidation:
+
+- Use single source of truth for UI components
+- Merge similar functionality into one class
+- Keep component hierarchy clear
+- Document component relationships
+- Maintain clear naming conventions
+
+3. Common Cleanup Triggers:
+
+- Finding duplicate window classes
+- Discovering unused imports
+- Noticing similar component logic
+- Identifying dead code paths
+- Seeing commented functionality
+
+4. Cleanup Validation:
+
+- Verify no broken references
+- Test all affected functionality
+- Update relevant documentation
+- Remove related configuration
+- Clean up import statements
+
+5. Documentation Updates:
+
+- Remove references to deleted components
+- Update architecture diagrams
+- Clean up configuration examples
+- Remove obsolete instructions
+- Update component relationships
+
+## Window Management Rules
+
+MUST Follow these window organization patterns:
+
+1. Primary Window Selection:
+
+- Use single primary window class (ChatWindow)
+- NEVER maintain multiple main window implementations
+- Document window class responsibilities
+- Keep window hierarchy clear
+- Use consistent window naming
+
+Example correct window usage:
+
+```python
+# In application.py
+def run(self):
+    self.main_window = ChatWindow()  # Single primary window
+    self.main_window.show()
+```
+
+2. Window Component Organization:
+
+- Group related controls logically
+- Use consistent layout patterns
+- Maintain clear component hierarchy
+- Document component relationships
+- Follow established naming conventions
+
+3. Window Initialization:
+
+- Initialize window settings first
+- Set up event handling early
+- Load saved geometry/state
+- Register all required providers
+- Connect all signals/slots
+
+Example proper initialization:
+
+```python
+class ChatWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self._event_bus = EventBus.get_instance()
+        self._settings = QSettings("AIAssistant", "Chat")
+        self.setup_ui()
+        self.load_settings()
+```
+
+4. Common Window Pitfalls:
+
+- NEVER create redundant window classes
+- NEVER mix window responsibilities
+- NEVER skip settings persistence
+- NEVER ignore window lifecycle
+- NEVER duplicate control logic
+
+5. Window Lifecycle Management:
+
+- Handle window close events
+- Save window state on exit
+- Clean up resources properly
+- Manage child windows
+- Log window lifecycle events
+
+## Composite Provider Pattern
+
+MUST Follow these composite provider rules:
+
+1. Provider Composition:
+
+- Use composite provider to manage multiple providers
+- Keep individual providers focused on their API
+- Handle provider switching in composite
+- Maintain consistent interface
+- Preserve provider-specific config
+
+Example composite provider:
+
+```python
+class CompositeLLMProvider(LLMProvider):
+    def __init__(self, providers: Dict[str, LLMProvider]):
+        self._providers = providers
+        self._current_provider = next(iter(providers.values()))
+        self._current_model = self._current_provider.get_default_model()
+
+    def get_available_models(self) -> List[str]:
+        models = []
+        for provider_name, provider in self._providers.items():
+            for model in provider.get_available_models():
+                models.append(f"{provider_name}: {model}")
+        return models
+```
+
+2. Provider Registration:
+
+- Register composite as main provider
+- Store individual providers for switching
+- Use consistent naming format
+- Handle provider-specific configs
+- Maintain provider state
+
+Example registration:
+
+```python
+# Create all configured providers
+providers = {}
+if "anthropic" in llm_config.providers:
+    providers["anthropic"] = AnthropicProvider(llm_config.providers["anthropic"])
+if "openai" in llm_config.providers:
+    providers["openai"] = OpenAIProvider(llm_config.providers["openai"])
+
+# Register the composite provider
+composite_provider = CompositeLLMProvider(providers)
+self.registry.register_provider(LLMProvider, composite_provider)
+```
+
+3. Model Selection:
+
+- Use provider:model format for names
+- Handle provider switching on model change
+- Maintain default model selection
+- Preserve provider state
+- Log provider switches
+
+4. Common Pitfalls:
+
+- NEVER mix provider responsibilities
+- NEVER lose provider state during switches
+- NEVER skip provider cleanup
+- NEVER assume provider availability
+- NEVER bypass the composite pattern
+
+5. Benefits:
+
+- Single interface for multiple providers
+- Clean provider switching
+- Consistent model handling
+- Proper resource management
+- Clear responsibility separation
