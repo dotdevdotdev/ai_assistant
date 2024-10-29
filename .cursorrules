@@ -1140,3 +1140,118 @@ class MessageWidget(QWidget):
 - Consistent user experience
 - Maintainable styling
 - Proper event handling
+
+## Signal Handling Best Practices
+
+MUST Follow these signal handling rules:
+
+1. Signal Cleanup:
+
+```python
+# Disconnect all slots from a signal
+signal.disconnect()  # Removes all connections
+
+# Disconnect specific slot
+try:
+    signal.disconnect(specific_slot)
+except:
+    pass  # Handle case where not connected
+```
+
+2. Signal Connection:
+
+```python
+# Use UniqueConnection to prevent duplicates
+signal.connect(
+    slot,
+    type=Qt.ConnectionType.UniqueConnection
+)
+```
+
+3. Pipeline Signal Management:
+
+- Disconnect ALL regular handlers when entering pipeline mode
+- Connect pipeline-specific handlers with UniqueConnection
+- Reconnect regular handlers when exiting pipeline mode
+- Use state checks (e.g., isChecked()) to prevent handler overlap
+
+4. Common Pitfalls:
+
+- NEVER assume signals are disconnected
+- NEVER skip cleanup when switching modes
+- NEVER mix regular and pipeline handlers
+- NEVER leave dangling connections
+- NEVER forget to reconnect regular handlers
+
+## Pipeline Pattern Rules
+
+MUST Follow these pipeline implementation patterns:
+
+1. State Management:
+
+```python
+def _start_pipeline(self):
+    # Disable regular operation
+    self.regular_mode.setEnabled(False)
+
+    # Clean up existing connections
+    self._cleanup_pipeline_connections()
+
+    # Disconnect regular handlers
+    self.signals.disconnect()
+
+    # Connect pipeline handlers
+    self.signals.connect(
+        self._pipeline_handler,
+        type=Qt.ConnectionType.UniqueConnection
+    )
+```
+
+2. Handler Separation:
+
+```python
+def _regular_handler(self, data):
+    if self.pipeline_active:
+        print("Pipeline active - skipping regular handler")
+        return
+    # Regular processing...
+
+def _pipeline_handler(self, data):
+    # Pipeline-specific processing...
+```
+
+3. Cleanup Pattern:
+
+```python
+def _end_pipeline(self):
+    # Clean up pipeline connections
+    self._cleanup_pipeline_connections()
+
+    # Re-enable regular operation
+    self.regular_mode.setEnabled(True)
+
+    # Reconnect regular handlers
+    self.signals.connect(
+        self._regular_handler,
+        type=Qt.ConnectionType.UniqueConnection
+    )
+```
+
+4. Error Handling:
+
+```python
+try:
+    # Pipeline operations...
+except Exception as e:
+    print(f"Pipeline error: {e}")
+    self._end_pipeline()  # Always clean up
+```
+
+MUST Include in all pipeline implementations:
+
+- Clear state transitions
+- Proper signal cleanup
+- Handler isolation
+- Error recovery
+- Resource cleanup
+- State restoration
