@@ -9,5 +9,14 @@ class SpeechToTextProvider(ABC):
 
 class TextToSpeechProvider(ABC):
     @abstractmethod
-    def synthesize(self, text: str) -> bytes:
+    async def synthesize(self, text: str, ref_audio: str = None) -> bytes:
+        """Synthesize speech from text
+
+        Args:
+            text: Text to synthesize
+            ref_audio: Optional reference audio file path (provider-specific)
+
+        Returns:
+            bytes: Audio data in WAV format
+        """
         pass

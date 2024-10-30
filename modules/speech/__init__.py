@@ -1,35 +1,36 @@
-from enum import Enum
-from typing import Dict, Any, Union
-from core.interfaces.speech import SpeechToTextProvider, TextToSpeechProvider
+from enum import Enum, auto
+from typing import Optional
 from .whisper_provider import WhisperProvider
-from .deepgram_provider import DeepgramProvider
 from .f5_provider import F5TTSProvider
+from .elevenlabs_provider import ElevenLabsProvider
 
 
 class SpeechProviderType(Enum):
     WHISPER = "whisper"
-    DEEPGRAM = "deepgram"
     F5TTS = "f5tts"
-    ELEVENLABS = "elevenlabs"  # Add other TTS providers
+    ELEVENLABS = "elevenlabs"  # Add this
 
 
-def create_speech_provider(
-    provider_type: str, config: Dict[str, Any] = None
-) -> Union[SpeechToTextProvider, TextToSpeechProvider]:
-    """Create and configure a speech provider"""
-    providers = {
-        "whisper": WhisperProvider,
-        "deepgram": DeepgramProvider,
-        "f5tts": F5TTSProvider,
-    }
+def create_speech_provider(provider_type: str, config: Optional[dict] = None):
+    """Create a speech provider instance
 
-    if provider_type not in providers:
+    Args:
+        provider_type: Type of provider to create
+        config: Optional provider configuration
+
+    Returns:
+        Provider instance
+    """
+    try:
+        provider_type = SpeechProviderType(provider_type.lower())
+    except ValueError:
         raise ValueError(f"Unknown speech provider type: {provider_type}")
 
-    provider = providers[provider_type]()
-
-    # Configure the provider if it has a configure method
-    if hasattr(provider, "configure") and config:
-        provider.configure(config)
-
-    return provider
+    if provider_type == SpeechProviderType.WHISPER:
+        return WhisperProvider()
+    elif provider_type == SpeechProviderType.F5TTS:
+        return F5TTSProvider(config)
+    elif provider_type == SpeechProviderType.ELEVENLABS:  # Add this
+        return ElevenLabsProvider(config)
+    else:
+        raise ValueError(f"Unsupported speech provider type: {provider_type}")

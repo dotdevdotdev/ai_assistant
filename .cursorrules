@@ -1,605 +1,55 @@
-# AI Assistant Rules
+# Core Implementation Rules
 
-## Core Behaviors
-
-MUST Keep responses concise and conversational without exception
-MUST Use casual but professional language at all times
-MUST Provide only direct, actionable responses
-MUST Maintain clarity and precision in all responses
-MUST Support all suggestions with concrete examples
-NEVER Use filler words like "certainly", "definitely", etc. under any circumstances
-NEVER Include unnecessary apologies or overly formal language whatsoever
-NEVER Make vague or ambiguous suggestions in any context
-NEVER Leave any recommendation open to interpretation
-NEVER Skip over important technical details
-
-## Code Assistance
-
-MUST Tag every code block with both language and filepath without exception
-MUST Show complete context around all code changes
-MUST Thoroughly analyze impact on all connected components
-MUST Validate suggestions against existing patterns
-MUST Test suggestions for compatibility
-
-## Learned Best Practices
-
-MUST Tag all code blocks with complete filepath and language information
-MUST Provide full context for every code change
-MUST Include complete file contents for new files
-MUST Implement proper thread safety in audio processing
-MUST Follow established error handling patterns
-MUST Maintain consistent event emission patterns
-
-## Common Pitfalls
-
-NEVER Modify code without considering the event bus architecture
-NEVER Mix synchronous and asynchronous patterns
-NEVER Leave resource cleanup unhandled
-NEVER Allow disconnected signal/slot connections
-NEVER Break UI theme consistency
-NEVER Bypass the manager registry pattern
-
-## Response Format
-
-MUST Use markdown formatting for all responses
-MUST Include language and filepath in every code block
-MUST Group all related changes together
-MUST Provide relevant context for all changes
-MUST Keep all explanations focused and actionable
-
-## Error Handling
-
-MUST Implement comprehensive error handling
-MUST Account for all possible edge cases
-MUST Follow established logging patterns
-MUST Include proper resource cleanup
-MUST Validate error recovery paths
-
-## Project-Specific
-
-MUST Design all changes around the event-driven architecture
-MUST Adhere to the manager registry pattern without exception
-MUST Ensure audio pipeline compatibility
-MUST Follow UI theme specifications exactly
-MUST Maintain all signal/slot connection patterns
-
-## Environment Variables
-
-MUST Use COMPANY_API_KEY naming convention for all API keys
-MUST Assume environment variables are pre-loaded
-NEVER Use dotenv or similar environment loading libraries
-
-## Settings Files
-
-MUST Use YAML format for all settings and configuration files
-MUST Include proper YAML validation in config loading
-MUST Follow established YAML structure patterns
-MUST Document all YAML configuration options
-MUST Maintain backwards compatibility in YAML schemas
-
-## Documentation URLs
-
-MUST Reference these official documentation sources:
-
-Core Libraries:
-
-- PyQt6: https://doc.qt.io/qtforpython-6/
-- OpenAI API: https://platform.openai.com/docs
-- Anthropic API: https://docs.anthropic.com/claude/
-- Deepgram: https://developers.deepgram.com/docs/
-- ElevenLabs: https://docs.elevenlabs.io/
-
-Audio Processing:
-
-- PyAudio: https://people.csail.mit.edu/hubert/pyaudio/docs/
-- SoundDevice: https://python-sounddevice.readthedocs.io/
-- pyttsx3: https://pyttsx3.readthedocs.io/
-- pydub: https://github.com/jiaaro/pydub#documentation
-- soundfile: https://pysoundfile.readthedocs.io/
-
-Utility Libraries:
-
-- pyautogui: https://pyautogui.readthedocs.io/
-- pyperclip: https://pyperclip.readthedocs.io/
-- numpy: https://numpy.org/doc/
-- flask: https://flask.palletsprojects.com/
-- PyYAML: https://pyyaml.org/wiki/PyYAMLDocumentation
-
-MUST Consult relevant documentation when implementing features
-MUST Keep documentation references up to date
-MUST Follow each library's best practices and conventions
-MUST Document any deviations from standard library patterns
-NEVER Implement features without consulting official documentation
-
-## Audio Configuration
-
-MUST Use device default sample rate from PyAudio device info
-MUST Handle sample rate validation gracefully
-MUST Log sample rate detection and usage
-MUST NOT Force specific sample rates without checking device capabilities
-
-Example device sample rate detection:
+## Audio Processing
 
 ```python
-device_info = self._audio.get_device_info_by_index(config.device_id)
+# Device setup
+device_info = audio.get_device_info_by_index(device_id)
 sample_rate = int(device_info["defaultSampleRate"])
-```
+buffer_size = chunk_size * 4
 
-## Audio Stream Management
-
-- MUST Use device's default sample rate from PyAudio device info (never hardcode)
-- MUST Configure buffer size as multiple of chunk size (typically 4x) to prevent overflow
-- MUST Set exception_on_overflow=False in PyAudio read operations for graceful handling
-
-Example buffer size configuration:
-
-```python
-self._buffer_size = config.chunk_size * 4
-```
-
-## Audio Stream Shutdown
-
-MUST Follow exact shutdown sequence:
-
-- Set stop flag first
-- Process all buffered data using get_read_available()
-- Stop stream only after buffer empty
-- Close stream and cleanup resources
-- Reset all state flags
-
-Example proper shutdown:
-
-```python
-# First set flags
+# Shutdown sequence
 self._stop_requested = True
-self._is_processing = True
+while stream.is_active() and stream.get_read_available() > 0:
+    data = stream.read(chunk_size, exception_on_overflow=False)
+stream.stop_stream()
+stream.close()
 
-# Process remaining buffer
-while self._stream.is_active() and self._stream.get_read_available() > 0:
-    data = self._stream.read(chunk_size, exception_on_overflow=False)
-    if data:
-        process_and_store_audio(data)
-
-# Only then stop stream
-self._stream.stop_stream()
-self._stream.close()
-```
-
-## Audio Buffer Processing
-
-MUST Process all buffered audio before stream closure
-MUST Use consistent sample rate throughout processing
-MUST Maintain audio quality during shutdown
-MUST Log buffer metrics during processing
-MUST Handle all exceptions during buffer processing
-MUST Reset state in finally block
-MUST Clean up resources on error
-MUST Maintain consistent state after errors
-
-## Audio Stream Pitfalls
-
-NEVER Stop stream before processing remaining buffer
-NEVER Discard buffered audio data during shutdown
-NEVER Close stream while data is still available
-NEVER Skip audio processing during shutdown
-NEVER Mix buffer sizes during processing
-NEVER Leave streams open after errors
-
-## Logging Conventions
-
-- MUST Use logging prefixes for clarity:
-  - `===` for section boundaries and major state changes
-  - `>>>` for important events and successful operations
-  - `!!!` for errors and warnings
-- MUST Include detailed audio metrics in debug logs (sample rates, buffer sizes, min/max values)
-- MUST Log all transcription pipeline stages: audio capture, processing, transcription, and UI updates
-
-## Audio Transcription Pipeline
-
-- MUST Follow these steps for audio transcription:
-
-  1. Use PyAudio's paFloat32 format for raw audio capture
-  2. Buffer at least 2 seconds of audio before processing
-  3. Normalize audio data to [-1, 1] range before resampling
-  4. Resample audio to 16kHz for Whisper compatibility
-  5. Maintain 0.5 second overlap between processing chunks
-
-- MUST Handle sample rate conversion:
-
-  - Detect source sample rate from first audio chunk
-  - Always resample to 16kHz for Whisper
-  - Use scipy.signal.resample for high-quality resampling
-
-- MUST Implement proper buffer management:
-  - Store raw audio chunks in list instead of bytearray
-  - Calculate total samples across all chunks
-  - Keep overlap from previous processing window
-  - Clear buffer after processing to prevent memory growth
-
-Example audio processing sequence:
-
-```python
-# Convert bytes to numpy array
-chunk_data = np.frombuffer(chunk, dtype=np.float32)
-
-# Normalize if needed
-if np.max(np.abs(audio_data)) > 1.0:
-    audio_data = audio_data / np.max(np.abs(audio_data))
-
-# Resample to target rate
+# Audio processing
+audio_data = np.frombuffer(chunk, dtype=np.float32)
+audio_data = audio_data / np.max(np.abs(audio_data))
 resampled = signal.resample(audio_data, target_length)
 ```
 
-## Async/Await Best Practices
-
-MUST Define WebSocket event handlers as async functions when using async queues or event buses
-MUST Use iscoroutinefunction to properly handle mixed sync/async callbacks in event systems
-MUST Maintain clear async boundaries between real-time audio capture and network services
-MUST Handle WebSocket connection lifecycle with proper async/await patterns
-
-## TTS Integration Patterns
-
-MUST Follow these steps when integrating new TTS providers:
-
-1. Create provider interface implementation
-2. Add provider type to enums
-3. Create dedicated UI controls
-4. Add configuration options to settings
-5. Register provider in application setup
-6. Implement proper audio playback handling
-
-Example TTS provider registration:
+## ElevenLabs Integration
 
 ```python
-# Add TTS provider
-tts_config = self.config.speech.config.get("provider_name", {})
-tts_provider = ProviderClass(model_name=tts_config.get("model", "default_model"))
-self.registry.register_provider(TextToSpeechProvider, tts_provider)
+async def synthesize(self, text: str) -> bytes:
+    url = f"{API_BASE}/text-to-speech/{voice_id}/stream"
+    headers = {"Accept": "application/json", "xi-api-key": api_key}
+    data = {
+        "text": text,
+        "model_id": model_id,
+        "voice_settings": {
+            "stability": stability,
+            "similarity_boost": similarity_boost,
+            "style": style,
+            "use_speaker_boost": speaker_boost
+        }
+    }
+
+    def make_request():
+        response = requests.post(url, headers=headers, json=data, stream=True)
+        audio_data = b"".join(response.iter_content(chunk_size=CHUNK_SIZE))
+        audio_segment = AudioSegment.from_mp3(io.BytesIO(audio_data))
+        wav_buffer = io.BytesIO()
+        audio_segment.export(wav_buffer, format="wav")
+        return wav_buffer.getvalue()
+
+    return await asyncio.get_event_loop().run_in_executor(None, make_request)
 ```
 
-## Directory Structure Standards
-
-MUST Follow these directory conventions:
-
-- `recordings/` - For temporary audio recordings
-- `reference_audio/` - For TTS voice reference files
-- `resources/audio/` - For application audio assets
-
-MUST Create directories with proper permissions:
-
-```python
-os.makedirs(directory_path, exist_ok=True)
-```
-
-## UI Component Design
-
-MUST Follow these UI component patterns:
-
-1. Separate controls into logical component classes
-2. Use consistent layout structures
-3. Implement proper signal/slot connections
-4. Handle async operations safely
-5. Provide clear user feedback
-6. Include proper error handling
-
-Example component structure:
-
-```python
-class ComponentName(QWidget):
-    signal_name = pyqtSignal(type)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._setup_ui()
-        self._connect_signals()
-        self._initialize_state()
-```
-
-## Configuration Management
-
-MUST Structure YAML configs with:
-
-- Provider-specific sections
-- Clear option hierarchies
-- Default values
-- Directory paths
-- Feature flags
-
-Example config structure:
-
-```yaml
-module_name:
-  provider: provider_name
-  config:
-    provider_name:
-      option1: value1
-      option2: value2
-```
-
-## Audio Processing Best Practices
-
-MUST Handle audio device changes safely:
-
-- Log device changes only when actually changing
-- Maintain device state consistently
-- Handle device initialization failures
-- Clean up old device connections
-
-Example device handling:
-
-```python
-def set_device(self, device_id: int) -> None:
-    if device_id != self._current_device_id:
-        self._current_device_id = device_id
-        self._initialize_device()
-```
-
-## Component Integration Steps
-
-1. Create the component class
-2. Add necessary imports
-3. Implement required interfaces
-4. Add configuration options
-5. Create UI controls
-6. Connect signals/slots
-7. Add error handling
-8. Update application setup
-9. Test all interactions
-
-## Code Organization Principles
-
-MUST Follow these organizational patterns:
-
-1. Group related functionality into components
-2. Use consistent naming conventions
-3. Implement proper interface abstractions
-4. Maintain clear dependency boundaries
-5. Document component interactions
-
-## Testing Considerations
-
-MUST Test these scenarios:
-
-1. Device changes during operation
-2. Resource cleanup on errors
-3. Async operation cancellation
-4. UI state consistency
-5. Configuration loading/saving
-6. Audio processing pipeline
-7. Error recovery paths
-
-## Subprocess Execution Patterns
-
-MUST Follow these subprocess execution rules:
-
-1. Command String vs List:
-
-- Use shell=True with single string for commands needing shell features
-- Use command list with shell=False for direct execution
-- Always quote paths and arguments when using shell=True
-
-Example shell=True usage:
-
-```python
-cmd = f'cli_tool --input "{input_file}" --output "{output_dir}"'
-process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-```
-
-Example shell=False usage:
-
-```python
-cmd = ["cli_tool", "--input", input_file, "--output", output_dir]
-process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE)
-```
-
-2. Output Handling:
-
-- Use text=True for string output
-- Use universal_newlines=True for consistent line endings
-- Always capture both stdout and stderr
-- Check process.returncode before using output
-
-Example proper output handling:
-
-```python
-process = subprocess.Popen(
-    cmd,
-    shell=True,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    text=True
-)
-stdout, stderr = process.communicate()
-if process.returncode != 0:
-    raise RuntimeError(f"Command failed: {stderr}")
-```
-
-3. Resource Cleanup:
-
-- Always use process.communicate() to avoid deadlocks
-- Set timeouts for long-running processes
-- Clean up temp files in finally blocks
-- Handle process termination gracefully
-
-4. Common Pitfalls:
-
-- NEVER pass unquoted strings with spaces in shell=True mode
-- NEVER use shell=True with command lists
-- NEVER leave processes running without cleanup
-- NEVER mix bytes and text mode in output handling
-- NEVER ignore stderr when checking for errors
-
-5. Async Integration:
-
-- Use asyncio.create_subprocess_exec for async code
-- Use shell=True with subprocess.Popen for sync code
-- Never mix async and sync process handling
-- Always await process.communicate() in async code
-
-Example async process:
-
-```python
-process = await asyncio.create_subprocess_exec(
-    *cmd,
-    stdout=asyncio.subprocess.PIPE,
-    stderr=asyncio.subprocess.PIPE
-)
-stdout, stderr = await process.communicate()
-```
-
-6. Error Handling:
-
-- Check process.returncode explicitly
-- Capture and log stderr output
-- Include command string in error messages
-- Clean up resources on errors
-- Provide detailed error context
-
-Example error handling:
-
-```python
-try:
-    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise RuntimeError(f"Command '{cmd}' failed with code {process.returncode}: {stderr}")
-except Exception as e:
-    print(f"Error executing command: {e}")
-    raise
-```
-
-7. File Handling:
-
-- Use Path objects for file paths
-- Check file existence before and after
-- Clean up temporary files
-- Use proper file permissions
-- Handle path quoting correctly
-
-Example file handling:
-
-```python
-output_file = Path(output_dir) / "output.wav"
-if output_file.exists():
-    output_file.unlink()
-# Run command
-if not output_file.exists():
-    raise FileNotFoundError(f"Command failed to create {output_file}")
-```
-
-8. Logging:
-
-- Log full command string
-- Log process output
-- Log error conditions
-- Include timing information
-- Log resource cleanup
-
-Example logging:
-
-```python
-print(f">>> Executing command: {cmd}")
-start_time = time.time()
-process = subprocess.Popen(...)
-stdout, stderr = process.communicate()
-print(f">>> Process completed in {time.time() - start_time:.2f}s")
-if stdout: print(f">>> Output:\n{stdout}")
-if stderr: print(f">>> Errors:\n{stderr}")
-```
-
-## Audio Transcription Best Practices
-
-MUST Follow these audio transcription rules:
-
-1. Audio Format Requirements:
-
-   - Use int16 format for raw audio capture
-   - Normalize float32 values to [-1, 1] range
-   - Resample to 16kHz for Whisper
-   - Use single channel (mono) audio
-   - Log audio metrics (shape, max values) for debugging
-
-2. Whisper Configuration:
-   - Use "base.en" or "small.en" for English-only transcription
-   - Set temperature=0.0 for deterministic output
-   - Adjust no_speech_threshold=0.3 for better detection
-   - Remove initial prompts that can bias output
-   - Use beam_size=1 for faster processing
-
-Example Whisper configuration:
-
-```python
-result = model.transcribe(
-    audio_data,
-    language="en",
-    task="transcribe",
-    fp16=False,
-    temperature=0.0,
-    best_of=1,
-    beam_size=1,
-    no_speech_threshold=0.3
-)
-```
-
-3. Audio Processing Pipeline:
-
-```python
-# Convert audio frames to numpy array
-audio_data = np.frombuffer(b''.join(audio_frames), dtype=np.int16)
-
-# Convert to float32 and normalize to [-1, 1]
-audio_float = audio_data.astype(np.float32) / 32768.0
-
-# Resample to 16kHz
-from scipy import signal
-original_rate = 44100
-target_rate = 16000
-new_samples = int(len(audio_float) * target_rate / original_rate)
-audio_resampled = signal.resample(audio_float, new_samples)
-```
-
-4. Debug Logging Requirements:
-
-   - Log received audio frame count
-   - Log audio data shape and max values
-   - Log resampled audio metrics
-   - Include transcription confidence scores
-   - Report processing duration
-
-5. Common Pitfalls:
-
-   - NEVER skip audio normalization
-   - NEVER use wrong sample rate conversion
-   - NEVER process empty audio frames
-   - NEVER ignore audio level metrics
-   - NEVER skip proper error handling
-
-6. Performance Optimization:
-
-   - Use appropriate model size for task
-   - Enable GPU acceleration when available
-   - Implement proper audio buffering
-   - Monitor memory usage
-   - Cache model loading
-
-7. Quality Checks:
-   - Validate audio levels before processing
-   - Check for clipping in normalized audio
-   - Verify resampling quality
-   - Monitor transcription confidence
-   - Log failed transcription attempts
-
-## Provider Pattern Rules
-
-MUST Follow these provider implementation steps:
-
-1. Define interface in core/interfaces/
-2. Create provider class implementing interface
-3. Add provider type to relevant enum
-4. Register provider in registry
-5. Add configuration section in app-settings.yaml
-
-Example provider registration:
+## Provider Pattern
 
 ```python
 @dataclass
@@ -607,651 +57,115 @@ class ProviderConfig:
     name: str
     settings: Dict[str, Any]
 
-class ExampleProvider(ExampleInterface):
+class ExampleProvider(Interface):
     def __init__(self, config: ProviderConfig):
-        self._config = config
+        self._config = config  # Direct attribute access
         self._initialize()
-```
 
-## Provider Configuration Rules
-
-MUST Structure provider configs consistently:
-
-```yaml
-module_name:
-  provider: selected_provider_name
-  providers:
-    selected_provider_name:
-      setting1: value1
-      setting2: value2
-    alternate_provider_name:
-      setting1: value1
-```
-
-## Provider Registration Rules
-
-MUST Follow registration pattern:
-
-```python
-# In application.py
-provider_config = self.config.get_provider_config("module_name")
+# Registration
+provider_config = self.config.module.providers[provider_name]
 provider = ProviderClass(provider_config)
-self.registry.register_provider(ProviderInterface, provider)
+self.registry.register_provider(Interface, provider)
 ```
 
-## Provider Testing Rules
-
-MUST Test provider swapping:
-
-1. Test configuration loading
-2. Verify clean provider shutdown
-3. Test provider initialization
-4. Verify resource cleanup
-5. Test provider hot-swapping
-
-## Provider Interface Rules
-
-MUST Include in all provider interfaces:
-
-- Initialization method
-- Cleanup method
-- Status/health check
-- Resource management
-- Error handling
-
-## Provider Lifecycle Rules
-
-MUST Handle provider lifecycle:
-
-1. Load configuration
-2. Initialize resources
-3. Connect signals/slots
-4. Handle errors
-5. Clean up resources
-6. Log state changes
-
-## Configuration Access Patterns
-
-MUST Follow these configuration access rules:
-
-1. Direct Attribute Access:
-
-- Use direct attribute access for AppConfig objects
-- NEVER use dictionary-style .get() on config objects
-- Access nested configs through dot notation
-
-Example correct config access:
+## Subprocess Execution
 
 ```python
-# Correct - direct attribute access
-llm_config = self.config.llm
-provider_name = llm_config.provider
-provider_config = llm_config.providers[provider_name]
+# For shell commands
+cmd = f'tool --input "{input_file}" --output "{output_dir}"'
+process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, text=True)
 
-# Correct - nested config access
-audio_config = self.config.audio.config.copy()
-speech_provider_type = self.config.speech.provider_type
+# For direct execution
+cmd = ["tool", "--input", input_file, "--output", output_dir]
+process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE)
+
+# Async execution
+process = await asyncio.create_subprocess_exec(*cmd,
+    stdout=asyncio.subprocess.PIPE)
+stdout, stderr = await process.communicate()
 ```
 
-2. Dictionary Access:
-
-- Use .get() ONLY for actual dictionaries
-- Use dict access for provider-specific config sections
-- Include default values when using .get()
-
-Example dictionary access:
-
-```python
-# Correct - dictionary get() with default
-tts_config = self.config.speech.config.get("f5tts", {})
-model_name = tts_config.get("model", "default_model")
-
-# Correct - provider config access
-provider_config = llm_config.providers[provider_name]
-```
-
-3. Common Pitfalls:
-
-- NEVER use .get() on AppConfig objects
-- NEVER mix dictionary and attribute access styles
-- NEVER assume config structure without validation
-- NEVER access config values without proper error handling
-- NEVER use string literals for config keys
-
-4. Config Validation:
-
-- Validate config presence before access
-- Check for required config sections
-- Provide meaningful error messages
-- Log config access issues
-- Handle missing config gracefully
-
-## Provider Implementation Rules
-
-MUST Follow these provider access patterns:
-
-1. Config Access in Providers:
-
-- Use direct attribute access for dataclass configs
-- NEVER use dictionary-style access on provider configs
-- Access config values through properties
-
-Example correct provider implementation:
-
-```python
-class ExampleProvider(ProviderInterface):
-    def __init__(self, config):
-        self._config = config  # Config is a dataclass
-        self._current_model = self.get_default_model()
-
-    def get_default_model(self):
-        return self._config.default_model  # Direct attribute access
-
-    def get_available_models(self):
-        return self._config.models  # Direct attribute access
-```
-
-2. Provider Initialization:
-
-- Initialize client/API in constructor
-- Load environment variables properly
-- Set default model/settings from config
-- Validate config before use
-
-Example proper initialization:
-
-```python
-def __init__(self, config):
-    self._config = config
-    self._client = APIClient(api_key=os.environ["API_KEY"])
-    self._current_model = self.get_default_model()
-    self._validate_config()
-```
-
-3. Error Handling in Providers:
-
-- Catch and log API-specific errors
-- Provide meaningful error messages
-- Include error context in exceptions
-- Clean up resources on error
-- Log all API interactions
-
-Example error handling:
-
-```python
-def generate_response(self, message: str) -> str:
-    try:
-        response = self._client.create(
-            model=self._current_model,
-            messages=[{"role": "user", "content": message}]
-        )
-        return response.content
-    except Exception as e:
-        print(f"!!! Error in API call: {str(e)}")
-        raise
-```
-
-4. Provider Validation:
-
-- Validate model names before use
-- Check API credentials early
-- Verify config completeness
-- Test API connectivity
-- Log validation results
-
-Example validation:
-
-```python
-def set_model(self, model_name: str):
-    if model_name not in self.get_available_models():
-        raise ValueError(f"Unknown model: {model_name}")
-    self._current_model = model_name
-```
-
-5. Common Provider Pitfalls:
-
-- NEVER access config as dictionary when it's a dataclass
-- NEVER ignore API rate limits
-- NEVER skip error logging
-- NEVER leave resources uncleaned
-- NEVER assume API availability
-
-## Rule Maintenance Guidelines
-
-MUST Follow these documentation update patterns:
-
-1. Knowledge Capture Triggers:
-
-- Add rules when solutions prove successful
-- Document patterns after bug fixes
-- Capture learnings from code reviews
-- Update when best practices emerge
-- Add rules after "this worked great" moments
-
-2. Rule Addition Format:
-
-- Match existing style and voice
-- Use clear MUST/NEVER directives
-- Include concrete examples
-- Group with related rules
-- Follow established sections
-
-3. Documentation Timing:
-
-- Add rules immediately after success
-- Document while context is fresh
-- Update related sections together
-- Include root cause of fixed issues
-- Reference relevant code patterns
-
-Example rule addition:
-
-```python
-## [Relevant Section]
-
-MUST Follow these [topic] rules:
-
-1. [New Pattern]:
-- Key requirement
-- Important consideration
-- Critical step
-
-Example implementation:
-def example_code():
-    # Show the pattern
-    pass
-```
-
-4. Common Update Triggers:
-
-- Bug fixes reveal patterns
-- Successful refactoring
-- New provider implementations
-- Configuration improvements
-- Error handling refinements
-
-5. Rule Quality Standards:
-
-- MUST be actionable
-- MUST include examples
-- MUST explain rationale
-- MUST reference patterns
-- NEVER be ambiguous
-
-## Code Cleanup Patterns
-
-MUST Follow these cleanup rules:
-
-1. Remove Unused Components:
-
-- Delete unused files completely
-- Remove redundant window/widget classes
-- Clean up duplicate functionality
-- Remove commented-out code
-- Document removal in commit messages
-
-Example cleanup trigger:
-
-```python
-# BAD: Having multiple window classes with similar functionality
-class MainWindow(QMainWindow):  # Unused but similar to ChatWindow
-    def setup_ui(self):
-        pass
-
-class ChatWindow(QMainWindow):  # The one actually being used
-    def setup_ui(self):
-        pass
-```
-
-2. Component Consolidation:
-
-- Use single source of truth for UI components
-- Merge similar functionality into one class
-- Keep component hierarchy clear
-- Document component relationships
-- Maintain clear naming conventions
-
-3. Common Cleanup Triggers:
-
-- Finding duplicate window classes
-- Discovering unused imports
-- Noticing similar component logic
-- Identifying dead code paths
-- Seeing commented functionality
-
-4. Cleanup Validation:
-
-- Verify no broken references
-- Test all affected functionality
-- Update relevant documentation
-- Remove related configuration
-- Clean up import statements
-
-5. Documentation Updates:
-
-- Remove references to deleted components
-- Update architecture diagrams
-- Clean up configuration examples
-- Remove obsolete instructions
-- Update component relationships
-
-## Window Management Rules
-
-MUST Follow these window organization patterns:
-
-1. Primary Window Selection:
-
-- Use single primary window class (ChatWindow)
-- NEVER maintain multiple main window implementations
-- Document window class responsibilities
-- Keep window hierarchy clear
-- Use consistent window naming
-
-Example correct window usage:
-
-```python
-# In application.py
-def run(self):
-    self.main_window = ChatWindow()  # Single primary window
-    self.main_window.show()
-```
-
-2. Window Component Organization:
-
-- Group related controls logically
-- Use consistent layout patterns
-- Maintain clear component hierarchy
-- Document component relationships
-- Follow established naming conventions
-
-3. Window Initialization:
-
-- Initialize window settings first
-- Set up event handling early
-- Load saved geometry/state
-- Register all required providers
-- Connect all signals/slots
-
-Example proper initialization:
-
-```python
-class ChatWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self._event_bus = EventBus.get_instance()
-        self._settings = QSettings("AIAssistant", "Chat")
-        self.setup_ui()
-        self.load_settings()
-```
-
-4. Common Window Pitfalls:
-
-- NEVER create redundant window classes
-- NEVER mix window responsibilities
-- NEVER skip settings persistence
-- NEVER ignore window lifecycle
-- NEVER duplicate control logic
-
-5. Window Lifecycle Management:
-
-- Handle window close events
-- Save window state on exit
-- Clean up resources properly
-- Manage child windows
-- Log window lifecycle events
-
-## Composite Provider Pattern
-
-MUST Follow these composite provider rules:
-
-1. Provider Composition:
-
-- Use composite provider to manage multiple providers
-- Keep individual providers focused on their API
-- Handle provider switching in composite
-- Maintain consistent interface
-- Preserve provider-specific config
-
-Example composite provider:
-
-```python
-class CompositeLLMProvider(LLMProvider):
-    def __init__(self, providers: Dict[str, LLMProvider]):
-        self._providers = providers
-        self._current_provider = next(iter(providers.values()))
-        self._current_model = self._current_provider.get_default_model()
-
-    def get_available_models(self) -> List[str]:
-        models = []
-        for provider_name, provider in self._providers.items():
-            for model in provider.get_available_models():
-                models.append(f"{provider_name}: {model}")
-        return models
-```
-
-2. Provider Registration:
-
-- Register composite as main provider
-- Store individual providers for switching
-- Use consistent naming format
-- Handle provider-specific configs
-- Maintain provider state
-
-Example registration:
-
-```python
-# Create all configured providers
-providers = {}
-if "anthropic" in llm_config.providers:
-    providers["anthropic"] = AnthropicProvider(llm_config.providers["anthropic"])
-if "openai" in llm_config.providers:
-    providers["openai"] = OpenAIProvider(llm_config.providers["openai"])
-
-# Register the composite provider
-composite_provider = CompositeLLMProvider(providers)
-self.registry.register_provider(LLMProvider, composite_provider)
-```
-
-3. Model Selection:
-
-- Use provider:model format for names
-- Handle provider switching on model change
-- Maintain default model selection
-- Preserve provider state
-- Log provider switches
-
-4. Common Pitfalls:
-
-- NEVER mix provider responsibilities
-- NEVER lose provider state during switches
-- NEVER skip provider cleanup
-- NEVER assume provider availability
-- NEVER bypass the composite pattern
-
-5. Benefits:
-
-- Single interface for multiple providers
-- Clean provider switching
-- Consistent model handling
-- Proper resource management
-- Clear responsibility separation
-
-## Message Display Patterns
-
-MUST Follow these message display rules:
-
-1. Message Widget Structure:
-
-- Create dedicated widget for each message
-- Use proper layout management
-- Handle text wrapping correctly
-- Enable text selection
-- Maintain consistent styling
-
-Example message widget:
-
-```python
-class MessageWidget(QWidget):
-    def __init__(self, message: Message, parent=None):
-        super().__init__(parent)
-        self.layout = QVBoxLayout(self)
-
-        # Create styled name label with rich text
-        name_label = QLabel(f'<span style="color: #39FF14; font-size: 14pt;">{message.role}:</span>')
-        name_label.setTextFormat(Qt.TextFormat.RichText)
-
-        # Create selectable content label
-        content_label = QLabel(message.content)
-        content_label.setWordWrap(True)
-        content_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-
-        self.layout.addWidget(name_label)
-        self.layout.addWidget(content_label)
-```
-
-2. Message View Organization:
-
-- Use QScrollArea for scrollable content
-- Maintain message history
-- Auto-scroll to new messages
-- Handle proper layout spacing
-- Support message clearing
-
-3. Common Pitfalls:
-
-- NEVER use raw text append operations
-- NEVER mix styling with content
-- NEVER skip proper layout management
-- NEVER ignore text selection needs
-- NEVER hardcode visual properties
-
-4. Message Styling:
-
-- Use consistent color scheme
-- Apply proper font sizing
-- Enable rich text where needed
-- Maintain visual hierarchy
-- Follow theme guidelines
-
-5. Benefits:
-
-- Better memory management
-- Proper widget lifecycle
-- Consistent user experience
-- Maintainable styling
-- Proper event handling
-
-## Signal Handling Best Practices
-
-MUST Follow these signal handling rules:
-
-1. Signal Cleanup:
-
-```python
-# Disconnect all slots from a signal
-signal.disconnect()  # Removes all connections
-
-# Disconnect specific slot
-try:
-    signal.disconnect(specific_slot)
-except:
-    pass  # Handle case where not connected
-```
-
-2. Signal Connection:
-
-```python
-# Use UniqueConnection to prevent duplicates
-signal.connect(
-    slot,
-    type=Qt.ConnectionType.UniqueConnection
-)
-```
-
-3. Pipeline Signal Management:
-
-- Disconnect ALL regular handlers when entering pipeline mode
-- Connect pipeline-specific handlers with UniqueConnection
-- Reconnect regular handlers when exiting pipeline mode
-- Use state checks (e.g., isChecked()) to prevent handler overlap
-
-4. Common Pitfalls:
-
-- NEVER assume signals are disconnected
-- NEVER skip cleanup when switching modes
-- NEVER mix regular and pipeline handlers
-- NEVER leave dangling connections
-- NEVER forget to reconnect regular handlers
-
-## Pipeline Pattern Rules
-
-MUST Follow these pipeline implementation patterns:
-
-1. State Management:
+## Pipeline Management
 
 ```python
 def _start_pipeline(self):
-    # Disable regular operation
     self.regular_mode.setEnabled(False)
-
-    # Clean up existing connections
-    self._cleanup_pipeline_connections()
-
-    # Disconnect regular handlers
     self.signals.disconnect()
+    self.signals.connect(self._pipeline_handler,
+                        type=Qt.ConnectionType.UniqueConnection)
 
-    # Connect pipeline handlers
-    self.signals.connect(
-        self._pipeline_handler,
-        type=Qt.ConnectionType.UniqueConnection
-    )
-```
-
-2. Handler Separation:
-
-```python
-def _regular_handler(self, data):
-    if self.pipeline_active:
-        print("Pipeline active - skipping regular handler")
-        return
-    # Regular processing...
-
-def _pipeline_handler(self, data):
-    # Pipeline-specific processing...
-```
-
-3. Cleanup Pattern:
-
-```python
 def _end_pipeline(self):
-    # Clean up pipeline connections
     self._cleanup_pipeline_connections()
-
-    # Re-enable regular operation
     self.regular_mode.setEnabled(True)
-
-    # Reconnect regular handlers
-    self.signals.connect(
-        self._regular_handler,
-        type=Qt.ConnectionType.UniqueConnection
-    )
+    self.signals.connect(self._regular_handler)
 ```
 
-4. Error Handling:
+## Critical Rules
 
-```python
-try:
-    # Pipeline operations...
-except Exception as e:
-    print(f"Pipeline error: {e}")
-    self._end_pipeline()  # Always clean up
+MUST:
+
+- Use device's native sample rate
+- Process all buffered data
+- Use direct attribute config access
+- Follow provider lifecycle
+- Clean up all resources
+- Log all operations
+- Handle all errors
+- Maintain thread safety
+- Use proper async patterns
+- Follow event architecture
+- Convert ElevenLabs MP3 to WAV
+- Run API requests in thread pool
+- Quote shell command paths
+- Handle subprocess streams properly
+
+NEVER:
+
+- Hardcode sample rates
+- Skip buffer processing
+- Use .get() on AppConfig
+- Mix sync/async patterns
+- Leave resources uncleaned
+- Assume API availability
+- Create duplicate windows
+- Leave connections dangling
+- Use SDK high-level functions
+- Skip stream handling
+- Mix bytes/text mode
+- Leave processes running
+
+## Directory Structure
+
+- recordings/ - Temp audio
+- reference_audio/ - TTS refs
+- resources/audio/ - App assets
+
+## Logging Format
+
+- === State changes
+- > > > Operations
+- !!! Errors
+
+## Config Format
+
+```yaml
+module_name:
+  provider: name
+  providers:
+    provider_name:
+      setting1: value1
+      voice_settings:
+        stability: 0.5
+        similarity_boost: 0.8
+        style: 0.0
+        use_speaker_boost: true
 ```
 
-MUST Include in all pipeline implementations:
+## Documentation URLs
 
-- Clear state transitions
-- Proper signal cleanup
-- Handler isolation
-- Error recovery
-- Resource cleanup
-- State restoration
+- PyQt6: https://doc.qt.io/qtforpython-6/
+- ElevenLabs: https://docs.elevenlabs.io/
+- PyAudio: https://people.csail.mit.edu/hubert/pyaudio/docs/
+- Anthropic: https://docs.anthropic.com/claude/
+- OpenAI: https://platform.openai.com/docs
+- Deepgram: https://developers.deepgram.com/docs/

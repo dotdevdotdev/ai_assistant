@@ -21,6 +21,8 @@ from modules.llm.anthropic_provider import AnthropicProvider
 from core.interfaces.llm import LLMProvider
 from modules.llm.openai_provider import OpenAIProvider
 from modules.llm.composite_provider import CompositeLLMProvider
+from modules.speech.elevenlabs_provider import ElevenLabsProvider
+from modules.speech.composite_tts_provider import CompositeTTSProvider
 
 
 class Application:
@@ -96,17 +98,52 @@ class Application:
                 AudioInputProvider, audio_provider, audio_config
             )
 
-            # Speech provider - ensure we pass the correct provider-specific config
-            speech_provider_type = self.config.speech.provider_type
-            speech_config = self.config.speech.config
-            print(f"Speech provider type: {speech_provider_type}")
-            print(f"Speech config: {speech_config}")
+            # Speech providers setup
+            print("\n=== Setting up Speech Providers ===")
 
-            speech_provider = create_speech_provider(
-                speech_provider_type, speech_config
+            # Speech-to-Text (STT) providers
+            print(">>> Setting up STT providers")
+            stt_config = self.config.speech.stt.config.get(
+                self.config.speech.stt.provider_type, {}
             )
-            self.registry.register_provider(
-                SpeechToTextProvider, speech_provider, speech_config
+            stt_provider = WhisperProvider()  # For now, just using Whisper
+            self.registry.register_provider(SpeechToTextProvider, stt_provider)
+            print(
+                f">>> Registered STT provider: {self.config.speech.stt.provider_type}"
+            )
+
+            # Text-to-Speech (TTS) providers
+            print("\n>>> Setting up TTS providers")
+            tts_providers = {}
+
+            # Register ElevenLabs provider
+            print(">>> Setting up ElevenLabs TTS provider")
+            elevenlabs_config = self.config.speech.tts.config.get("elevenlabs", {})
+            tts_providers["elevenlabs"] = ElevenLabsProvider(elevenlabs_config)
+            print(">>> ElevenLabs TTS provider registered")
+
+            # Register F5TTS provider
+            print(">>> Setting up F5TTS provider")
+            f5tts_config = self.config.speech.tts.config.get("f5tts", {})
+            provider_config = {
+                "model": f5tts_config.get("model", "F5-TTS"),
+                "reference_audio_dir": f5tts_config.get(
+                    "reference_audio_dir", "reference_audio"
+                ),
+            }
+            tts_providers["f5tts"] = F5TTSProvider(config=provider_config)
+            print(">>> F5TTS provider registered")
+
+            # Create and register the composite TTS provider
+            active_provider = self.config.speech.tts.provider_type
+            print(
+                f">>> Setting up composite TTS with active provider: {active_provider}"
+            )
+            print(f">>> Available TTS providers: {list(tts_providers.keys())}")
+            composite_tts = CompositeTTSProvider(tts_providers, active_provider)
+            self.registry.register_provider(TextToSpeechProvider, composite_tts)
+            print(
+                f">>> Registered composite TTS provider with active provider: {active_provider}"
             )
 
             # Assistant provider
@@ -123,31 +160,10 @@ class Application:
             )
             self.registry.register_provider(ClipboardProvider, clipboard_provider)
 
-            # Add TTS provider
-            print("\n=== Setting up TTS provider ===")
-            tts_config = self.config.speech.config.get("f5tts", {})
-            print(f">>> TTS config: {tts_config}")
-
-            # Create provider config with model name if specified
-            provider_config = {
-                "model": tts_config.get("model", "F5-TTS"),
-                "reference_audio_dir": tts_config.get(
-                    "reference_audio_dir", "reference_audio"
-                ),
-            }
-
-            tts_provider = F5TTSProvider(config=provider_config)
-            self.registry.register_provider(TextToSpeechProvider, tts_provider)
-            print(">>> TTS provider registered")
-
-            # Register Whisper as the speech-to-text provider
-            whisper_provider = WhisperProvider()
-            self.registry.register_provider(SpeechToTextProvider, whisper_provider)
-
-        except Exception as error:  # Changed from 'e' to 'error'
-            print(f"Error in _setup_providers: {error}")  # Debug print
+        except Exception as error:
+            print(f"Error in _setup_providers: {error}")
             self.loop.call_soon(
-                lambda error=error: self.loop.create_task(  # Capture error in lambda
+                lambda error=error: self.loop.create_task(
                     self.event_bus.emit(Event(EventType.ERROR, error=error))
                 )
             )

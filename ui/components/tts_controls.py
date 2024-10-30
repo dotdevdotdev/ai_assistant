@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSignal
 from core.interfaces.speech import TextToSpeechProvider
 from utils.registry import ProviderRegistry
+from modules.speech.composite_tts_provider import CompositeTTSProvider
 import os
 import io
 import asyncio
@@ -34,18 +35,40 @@ class TTSControls(QWidget):
         super().__init__(parent)
         print("\n=== Initializing TTS Controls ===")
         self._reference_dir = reference_dir
-        self._provider = ProviderRegistry.get_instance().get_provider(
-            TextToSpeechProvider
-        )
         self._setup_ui()
         self._load_reference_files()
 
         # Create reference directory if it doesn't exist
         os.makedirs(self._reference_dir, exist_ok=True)
+
+        # Get initial provider info
+        provider = self._get_provider()
+        if isinstance(provider, CompositeTTSProvider):
+            active = provider.get_active_provider()
+            available = provider.get_available_providers()
+            print(f">>> Available TTS providers: {available}")
+            print(f">>> Active TTS provider: {active}")
+
         print(">>> TTS Controls initialized")
+
+    def _get_provider(self) -> TextToSpeechProvider:
+        """Get the current TTS provider"""
+        return ProviderRegistry.get_instance().get_provider(TextToSpeechProvider)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
+
+        # Provider selection
+        provider_layout = QHBoxLayout()
+        self.provider_combo = QComboBox()
+        provider = self._get_provider()
+        if isinstance(provider, CompositeTTSProvider):
+            self.provider_combo.addItems(provider.get_available_providers())
+            self.provider_combo.setCurrentText(provider.get_active_provider())
+            self.provider_combo.currentTextChanged.connect(self._on_provider_changed)
+        provider_layout.addWidget(QLabel("TTS Provider:"))
+        provider_layout.addWidget(self.provider_combo, stretch=1)
+        layout.addLayout(provider_layout)
 
         # Reference audio selection
         ref_layout = QHBoxLayout()
@@ -140,7 +163,7 @@ class TTSControls(QWidget):
             try:
                 # Generate audio
                 print(">>> Calling TTS provider synthesize method")
-                audio_data = await self._provider.synthesize(text, ref_audio)
+                audio_data = await self._get_provider().synthesize(text, ref_audio)
                 print(">>> TTS generation completed, emitting result")
                 self.tts_generated.emit(audio_data)
             finally:
@@ -157,9 +180,7 @@ class TTSControls(QWidget):
         """Convert text to speech using the selected TTS provider"""
         try:
             print(">>> Starting TTS synthesis")
-            tts_provider = ProviderRegistry.get_instance().get_provider(
-                TextToSpeechProvider
-            )
+            tts_provider = self._get_provider()
 
             if not tts_provider:
                 print("!!! No TTS provider found")
@@ -193,3 +214,13 @@ class TTSControls(QWidget):
         """Handle TTS button click - can be used for manual TTS triggering"""
         # Implementation for manual TTS button if needed
         pass
+
+    def _on_provider_changed(self, provider_name: str):
+        """Handle provider selection change"""
+        try:
+            provider = self._get_provider()
+            if isinstance(provider, CompositeTTSProvider):
+                provider.set_active_provider(provider_name)
+                print(f">>> Switched to TTS provider: {provider_name}")
+        except Exception as e:
+            print(f"!!! Error changing TTS provider: {e}")

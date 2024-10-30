@@ -79,9 +79,15 @@ class LLMConfig:
 
 
 @dataclass
+class SpeechConfig:
+    stt: ModuleConfig  # Speech-to-Text config
+    tts: ModuleConfig  # Text-to-Speech config
+
+
+@dataclass
 class AppConfig:
     audio: ModuleConfig
-    speech: ModuleConfig
+    speech: SpeechConfig  # Changed from ModuleConfig to SpeechConfig
     assistant: ModuleConfig
     clipboard: ModuleConfig
     ui: Dict[str, Any]
@@ -103,14 +109,14 @@ class AppConfig:
 
                     # Get the speech provider settings
                     speech_dict = config_dict.get("speech", {})
-                    speech_provider = speech_dict.get("provider")
-                    print(f"Found speech provider: {speech_provider}")
+                    speech_provider_type = speech_dict.get("provider_type")
+                    print(f"Found speech provider: {speech_provider_type}")
 
                     # Get the speech config
                     speech_config = speech_dict.get("config", {})
-                    if speech_provider:
+                    if speech_provider_type:
                         speech_config = speech_dict.get("config", {}).get(
-                            speech_provider, {}
+                            speech_provider_type, {}
                         )
                     print(f"Speech config: {speech_config}")
 
@@ -137,9 +143,19 @@ class AppConfig:
                             provider_type=audio_dict.get("provider", "pyaudio"),
                             config=audio_config,
                         ),
-                        speech=ModuleConfig(
-                            provider_type=speech_provider or "whisper",
-                            config=speech_config,
+                        speech=SpeechConfig(
+                            stt=ModuleConfig(
+                                provider_type=speech_dict.get("stt", {}).get(
+                                    "provider_type", "whisper"
+                                ),
+                                config=speech_dict.get("stt", {}).get("config", {}),
+                            ),
+                            tts=ModuleConfig(
+                                provider_type=speech_dict.get("tts", {}).get(
+                                    "provider_type", "elevenlabs"
+                                ),
+                                config=speech_dict.get("tts", {}).get("config", {}),
+                            ),
                         ),
                         assistant=ModuleConfig(
                             provider_type=config_dict.get("assistant", {}).get(
@@ -159,9 +175,9 @@ class AppConfig:
                     )
 
                     print(
-                        f"Created config object with speech provider: {config.speech.provider_type}"
+                        f"Created config object with speech provider: {config.speech.stt.provider_type}"
                     )
-                    print(f"Speech config: {config.speech.config}")
+                    print(f"Speech config: {config.speech.stt.config}")
 
             except Exception as e:
                 print(f"Error loading config from {config_path}: {e}")
@@ -261,19 +277,40 @@ class AppConfig:
                     "output_device": None,  # Will be set to system default
                 },
             ),
-            speech=ModuleConfig(
-                provider_type="whisper",
-                config={
-                    "whisper": {
-                        "model": "base",
+            speech=SpeechConfig(
+                stt=ModuleConfig(
+                    provider_type="whisper",
+                    config={
+                        "whisper": {
+                            "model": "base",
+                        },
+                        "deepgram": {
+                            "model": "nova-2",
+                            "language": "en",
+                            "smart_format": True,
+                            "encoding": "linear16",
+                        },
                     },
-                    "deepgram": {
-                        "model": "nova-2",
-                        "language": "en",
-                        "smart_format": True,
-                        "encoding": "linear16",
+                ),
+                tts=ModuleConfig(
+                    provider_type="elevenlabs",
+                    config={
+                        "elevenlabs": {
+                            "model_id": "eleven_turbo_v2_5",
+                            "voice_id": "Crm8VULvkVs5ZBDa1Ixm",
+                            "voice_settings": {
+                                "stability": 0.49,
+                                "similarity_boost": 0.49,
+                                "style": 0.49,
+                                "speaker_boost": True,
+                            },
+                        },
+                        "f5tts": {
+                            "model": "F5-TTS",
+                            "reference_audio_dir": "reference_audio",
+                        },
                     },
-                },
+                ),
             ),
             assistant=ModuleConfig(provider_type="anthropic", config={}),
             clipboard=ModuleConfig(provider_type="qt", config={}),
@@ -290,8 +327,8 @@ class AppConfig:
                 "config": self.audio.config,
             },
             "speech": {
-                "provider": self.speech.provider_type,
-                "config": self.speech.config,
+                "provider": self.speech.stt.provider_type,
+                "config": self.speech.stt.config,
             },
             "assistant": {
                 "provider": self.assistant.provider_type,
