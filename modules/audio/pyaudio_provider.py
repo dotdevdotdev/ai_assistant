@@ -125,7 +125,7 @@ class PyAudioProvider(AudioInputProvider, AudioOutputProvider):
             print(">>> Processing remaining audio data...")
 
             # Check if stream exists and is active before trying to stop it
-            if self._stream and not self._stream._closed:  # Add check for closed state
+            if self._stream:
                 try:
                     # Keep reading remaining data in the stream buffer
                     while (
